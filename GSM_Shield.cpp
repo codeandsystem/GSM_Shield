@@ -97,12 +97,19 @@ int GSM::LibVer(void)
 /**********************************************************
   Constructor definition
 ***********************************************************/
-
-GSM::GSM(void)
+void GSM::Reset()
 {
+  digitalWrite(_resetPin,HIGH);
+  delay(500);
+  digitalWrite(_resetPin,LOW);
+}
+GSM::GSM(byte powerPin,byte resetPin)
+{
+
+  
   // set some GSM pins as inputs, some as outputs
-  pinMode(GSM_ON, OUTPUT);               // sets pin 5 as output
-  pinMode(GSM_RESET, OUTPUT);            // sets pin 4 as output
+  pinMode(powerPin, OUTPUT);               // sets pin 5 as output
+  pinMode(resetPin, OUTPUT);            // sets pin 4 as output
 
   //pinMode(DTMF_OUTPUT_ENABLE, OUTPUT);   // sets pin 2 as output
   // deactivation of IC8 so DTMF is disabled by default
@@ -460,10 +467,10 @@ char GSM::SendATCmdWaitResp(char const *AT_cmd_string,
         break;  // response is OK => finish
       }
       else ret_val = AT_RESP_ERR_DIF_RESP;
+
     }
     else {
-      // nothing was received
-      // --------------------
+ 
       ret_val = AT_RESP_ERR_NO_RESP;
     }
     
@@ -523,9 +530,9 @@ void GSM::TurnOn(long baud_rate)
 		#endif
 		
 		// generate turn on pulse
-		digitalWrite(GSM_ON, HIGH);
+		digitalWrite(_powerPin, HIGH);
 		delay(1200);
-		digitalWrite(GSM_ON, LOW);
+		digitalWrite(_powerPin, LOW);
 		delay(5000);
 	}
 	else

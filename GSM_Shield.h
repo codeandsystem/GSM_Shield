@@ -29,9 +29,7 @@
 //#define DEBUG_SMS_ENABLED
 
 
-// pins definition
-#define GSM_ON              6 // connect GSM Module turn ON to pin 77 
-#define GSM_RESET           7 // connect GSM Module RESET to pin 35
+
 //#define DTMF_OUTPUT_ENABLE  71 // connect DTMF Output Enable not used
 #define DTMF_DATA_VALID     14 // connect DTMF Data Valid to pin 14
 #define DTMF_DATA0          72 // connect DTMF Data0 to pin 72
@@ -154,7 +152,7 @@ class GSM
     // library version
     int LibVer(void);
     // constructor
-    GSM(void);
+    GSM(byte powerPin,byte resetPin);
     // serial line initialization
     //void InitSerLine(long baud_rate);
     // set comm. line status
@@ -162,7 +160,7 @@ class GSM
     // get comm. line status
     inline byte GetCommLineStatus(void) {return comm_line_status;};
 
-
+    void Reset();
     // turns on GSM module
     void TurnOn(long baud_rate);
     // sends some initialization parameters
@@ -253,6 +251,9 @@ class GSM
 #endif
 
   private:
+  
+    byte _resetPin;
+    byte _powerPin;
     byte comm_line_status;
 
     // global status - bits are used for representation of states
