@@ -143,12 +143,23 @@ enum getsms_ret_val_enum
   GETSMS_LAST_ITEM
 };
 
+struct HttpResponse
+{
+  int Code;
+  char * Content;
+};
+
 
 class GSM
 {
   public:
     byte comm_buf[COMM_BUF_LEN+1];  // communication buffer +1 for 0x00 termination
-
+    char SetupAPN(char * apn, char * username,char * password);
+    char SendATCmdGetResp(char const *AT_cmd_string,
+                uint16_t start_comm_tmout, uint16_t max_interchar_tmout,
+                byte no_of_attempts,char * output);
+                
+    HttpResponse HttpGet(char * url);
     // library version
     int LibVer(void);
     // constructor

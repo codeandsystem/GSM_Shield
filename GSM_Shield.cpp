@@ -99,17 +99,27 @@ int GSM::LibVer(void)
 ***********************************************************/
 void GSM::Reset()
 {
+
+#ifdef DEBUG_PRINT
+        DebugPrint("Resetting...");
+        #endif
+
   digitalWrite(_resetPin,HIGH);
-  delay(500);
+  delay(1500);
   digitalWrite(_resetPin,LOW);
+  #ifdef DEBUG_PRINT
+        DebugPrint("OK\n");
+        #endif
 }
 GSM::GSM(byte powerPin,byte resetPin)
 {
 
+  _powerPin =  powerPin;
+  _resetPin =  resetPin;
   
   // set some GSM pins as inputs, some as outputs
-  pinMode(powerPin, OUTPUT);               // sets pin 5 as output
-  pinMode(resetPin, OUTPUT);            // sets pin 4 as output
+  pinMode(_powerPin, OUTPUT);               // sets pin 5 as output
+  pinMode(_resetPin, OUTPUT);            // sets pin 4 as output
 
   //pinMode(DTMF_OUTPUT_ENABLE, OUTPUT);   // sets pin 2 as output
   // deactivation of IC8 so DTMF is disabled by default
@@ -187,6 +197,66 @@ void GSM::RxInit(uint16_t start_comm_tmout, uint16_t max_interchar_tmout)
   mySerial.flush(); // erase rx circular buffer
 }
 
+HttpResponse  GSM::HttpGet(char * url)
+{
+
+    HttpResponse ret;
+    String _url = String("AT+HTTPPARA=\"URL\",\"");
+    _url += url;
+    _url +='"';
+    
+    int buffer_length = _url.length() > 60 ? _url.length() : buffer_length;
+    char buffer[buffer_length+1];
+    _url.toCharArray(buffer,buffer_length+1);
+    
+
+    SendATCmdWaitResp("AT+HTTPINIT",2000, 200 ,"OK", 5);
+    SendATCmdWaitResp("AT+HTTPPARA=\"CID\",1",2000, 200 ,"OK", 5);
+    
+    SendATCmdWaitResp(buffer,2000, 200 ,"OK", 5);
+    SendATCmdGetResp("AT+HTTPACTION=0",10000,10000,1,buffer);
+
+
+    char ret2[4];
+    
+    char * ptr = strchr(buffer,',');
+    if(ptr)
+    {
+      memcpy(ret2,&ptr[1],3);   
+      ret2[3]='\0';
+      ret.Code = strtol(ret2,NULL,10);
+      Serial.println(ret.Code);
+    }
+
+  
+    
+   
+
+    SendATCmdWaitResp("AT+HTTPTERM",2000, 200 ,"OK", 5);
+    return ret;   
+
+
+
+}
+
+
+char GSM::SetupAPN(char * apn, char * username,char * password)
+{
+    char buffer[50];
+    
+    SendATCmdWaitResp("AT+SAPBR=3,1,\"Contype\",\"GPRS\"",2000, 200 ,"OK", 1);
+    
+    sprintf(buffer,"AT+SAPBR=3,1,\"APN\",\"%s\"",apn);
+    SendATCmdWaitResp(buffer,2000, 200, "OK", 1);
+    
+    sprintf(buffer,"AT+SAPBR=3,1,\"USER\",\"%s\"",username);
+    SendATCmdWaitResp(buffer,2000, 200, "OK", 1);
+        
+    sprintf(buffer,"AT+SAPBR=3,1,\"PWD\",\"%s\"",password);
+    SendATCmdWaitResp(buffer,2000, 200, "OK", 1);
+
+    return SendATCmdWaitResp("AT+SAPBR=1,1",100000, 2000, "OK", 1);
+}
 /**********************************************************
 Method checks if receiving process is finished or not.
 Rx process is finished if defined inter-character tmout is reached
@@ -389,6 +459,38 @@ byte GSM::WaitResp(uint16_t start_comm_tmout, uint16_t max_interchar_tmout)
 }
 
 
+char GSM::SendATCmdGetResp(char const *AT_cmd_string,
+                uint16_t start_comm_tmout, uint16_t max_interchar_tmout,
+                byte no_of_attempts,char * output)
+{
+
+  byte i;
+  byte j;
+  
+  for (i = 0; i < no_of_attempts; i++) {
+    // delay 500 msec. before sending next repeated AT command 
+    // so if we have no_of_attempts=1 tmout will not occurred
+    if (i > 0) delay(500); 
+
+    mySerial.println(AT_cmd_string);
+    if (WaitResp(start_comm_tmout, max_interchar_tmout) == RX_FINISHED) {
+      
+         for(j=0;j<comm_buf_len;j++)
+            {
+                output[j]=(char)comm_buf[j];
+            }
+            output[comm_buf_len]='\0';
+            
+         return AT_RESP_OK;
+    }
+
+    
+  }
+
+  return AT_RESP_ERR_NO_RESP;
+}
+
+
 /**********************************************************
 Method waits for response with specific response string
     
@@ -458,6 +560,7 @@ char GSM::SendATCmdWaitResp(char const *AT_cmd_string,
     if (i > 0) delay(500); 
 
     mySerial.println(AT_cmd_string);
+   
     status = WaitResp(start_comm_tmout, max_interchar_tmout); 
     if (status == RX_FINISHED) {
       // something was received but what was received?

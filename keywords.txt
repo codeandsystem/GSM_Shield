@@ -41,7 +41,10 @@ GetAuthorizedSMS	KEYWORD2
 DeleteSMS	KEYWORD2
 GetPhoneNumber	KEYWORD2
 WritePhoneNumber	KEYWORD2
+SendATCmdGetResp	KEYWORD2
+SendATCmdWaitResp	KEYWORD2
 ComparePhoneNumber	KEYWORD2
+SetupAPN KEYWORD2
 Echo	KEYWORD2
 
 ######################################
