@@ -143,11 +143,6 @@ enum getsms_ret_val_enum
   GETSMS_LAST_ITEM
 };
 
-struct HttpResponse
-{
-  int Code;
-  char * Content;
-};
 
 
 class GSM
@@ -159,7 +154,7 @@ class GSM
                 uint16_t start_comm_tmout, uint16_t max_interchar_tmout,
                 byte no_of_attempts,char * output);
                 
-    HttpResponse HttpGet(char * url);
+    int HttpGet(char * url,char * response);
     // library version
     int LibVer(void);
     // constructor

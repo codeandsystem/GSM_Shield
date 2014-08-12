@@ -6,8 +6,37 @@
 */
 #include <Arduino.h>
 #include <SoftwareSerial.h>
-#include "GSM_Shield.h"
+#include "GSM_Shield.h"   
+#include <avr/pgmspace.h>
 
+
+prog_char string_0[] PROGMEM = "AT+HTTPPARA=\"URL\",\"";   // "String 0" etc are strings to store - change to suit.
+prog_char string_1[] PROGMEM = "AT+HTTPINIT";
+prog_char string_2[] PROGMEM = "AT+HTTPPARA=\"CID\",1";
+prog_char string_3[] PROGMEM = "AT+HTTPACTION=0";
+prog_char string_4[] PROGMEM = "AT+HTTPREAD";
+prog_char string_5[] PROGMEM = "AT+HTTPTERM";
+prog_char string_6[] PROGMEM = "AT+SAPBR=3,1,\"Contype\",\"GPRS\"";
+prog_char string_7[] PROGMEM = "AT+SAPBR=3,1,\"APN\",\"%s\"";
+prog_char string_8[] PROGMEM = "AT+SAPBR=3,1,\"USER\",\"%s\"";
+prog_char string_9[] PROGMEM = "AT+SAPBR=3,1,\"PWD\",\"%s\"";
+prog_char string_10[] PROGMEM = "AT+SAPBR=1,1";
+
+PROGMEM const char *string_table [] = 	   // change "string_table" name to suit
+{   
+  string_0,
+  string_1,
+  string_2,
+  string_3,
+  string_4,
+  string_5,
+  string_6,
+  string_7,
+  string_8,
+  string_9,
+  string_10
+};
+   
 extern "C" {
   #include <string.h>
 }
@@ -197,42 +226,70 @@ void GSM::RxInit(uint16_t start_comm_tmout, uint16_t max_interchar_tmout)
   mySerial.flush(); // erase rx circular buffer
 }
 
-HttpResponse  GSM::HttpGet(char * url)
+
+int freeRam () {
+  extern int __heap_start, *__brkval; 
+  int v; 
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
+}
+
+
+int GSM::HttpGet(char * url,char * response)
 {
 
-    HttpResponse ret;
-    String _url = String("AT+HTTPPARA=\"URL\",\"");
-    _url += url;
-    _url +='"';
+    int ret;
+    char buffer[128] = "";
     
-    int buffer_length = _url.length() > 60 ? _url.length() : buffer_length;
-    char buffer[buffer_length+1];
-    _url.toCharArray(buffer,buffer_length+1);
+    strcpy_P(buffer, (char*)pgm_read_word(&(string_table[0])));
+    strcat(buffer,url);
+    strcat(buffer,"\"");
     
-
-    SendATCmdWaitResp("AT+HTTPINIT",2000, 200 ,"OK", 5);
-    SendATCmdWaitResp("AT+HTTPPARA=\"CID\",1",2000, 200 ,"OK", 5);
-    
+    Serial.println(buffer);
     SendATCmdWaitResp(buffer,2000, 200 ,"OK", 5);
-    SendATCmdGetResp("AT+HTTPACTION=0",10000,10000,1,buffer);
-
-
-    char ret2[4];
     
-    char * ptr = strchr(buffer,',');
+        
+    strcpy_P(buffer, (char*)pgm_read_word(&(string_table[1])));
+    Serial.println(buffer);
+    SendATCmdWaitResp(buffer,2000, 200 ,"OK", 5);
+    
+    strcpy_P(buffer, (char*)pgm_read_word(&(string_table[2])));
+    Serial.println(buffer);
+    SendATCmdWaitResp(buffer,3000, 200 ,"OK", 5);
+    
+    strcpy_P(buffer, (char*)pgm_read_word(&(string_table[3])));
+    Serial.println(buffer);
+    SendATCmdGetResp(buffer,20000,3000,1,buffer);
+    Serial.println(buffer);
+    
+    char * ptr = strstr(buffer,"ERROR");
     if(ptr)
     {
-      memcpy(ret2,&ptr[1],3);   
-      ret2[3]='\0';
-      ret.Code = strtol(ret2,NULL,10);
-      Serial.println(ret.Code);
+      return -1;
     }
+      
+      
+    ptr = strchr(buffer,',');
+    char ret_code_buffer[4];
+    memcpy(ret_code_buffer,&ptr[1],3);
+    ret_code_buffer[3]='\0';
 
-  
+    ret = strtol(ret_code_buffer,NULL,10);
     
-   
-
+    if(ret == 200 && response)
+    {
+        strcpy_P(buffer, (char*)pgm_read_word(&(string_table[4])));
+        Serial.println(buffer);
+        SendATCmdGetResp(buffer,20000,2000,1,buffer); 
+        char * lenStart = strchr(buffer,':');
+        char * lenEnd;
+        int length = strtol(lenStart+1,&lenEnd,10);  
+        strncpy(response,lenEnd+2,length); 
+        response[length] = '\0';      
+    }
+    
     SendATCmdWaitResp("AT+HTTPTERM",2000, 200 ,"OK", 5);
+    Serial.print("Free ram:");
+    Serial.println(freeRam());
     return ret;   
 
 
@@ -243,19 +300,25 @@ HttpResponse  GSM::HttpGet(char * url)
 char GSM::SetupAPN(char * apn, char * username,char * password)
 {
     char buffer[50];
+    char command[50];
     
-    SendATCmdWaitResp("AT+SAPBR=3,1,\"Contype\",\"GPRS\"",2000, 200 ,"OK", 1);
+    strcpy_P(command, (char*)pgm_read_word(&(string_table[6])));
+    SendATCmdWaitResp(command,2000, 200 ,"OK", 1);
     
-    sprintf(buffer,"AT+SAPBR=3,1,\"APN\",\"%s\"",apn);
-    SendATCmdWaitResp(buffer,2000, 200, "OK", 1);
-    
-    sprintf(buffer,"AT+SAPBR=3,1,\"USER\",\"%s\"",username);
-    SendATCmdWaitResp(buffer,2000, 200, "OK", 1);
-        
-    sprintf(buffer,"AT+SAPBR=3,1,\"PWD\",\"%s\"",password);
-    SendATCmdWaitResp(buffer,2000, 200, "OK", 1);
+    strcpy_P(buffer, (char*)pgm_read_word(&(string_table[7])));
+    sprintf(command,buffer,apn);
+    SendATCmdWaitResp(command,2000, 200, "OK", 1);
+   
+    strcpy_P(buffer, (char*)pgm_read_word(&(string_table[8]))); 
+    sprintf(command,buffer,username);
+    SendATCmdWaitResp(command,2000, 200, "OK", 1);
+      
+    strcpy_P(buffer, (char*)pgm_read_word(&(string_table[9])));  
+    sprintf(command,buffer,password);
+    SendATCmdWaitResp(command,2000, 200, "OK", 1);
 
-    return SendATCmdWaitResp("AT+SAPBR=1,1",100000, 2000, "OK", 1);
+    strcpy_P(command, (char*)pgm_read_word(&(string_table[10])));  
+    return SendATCmdWaitResp(command,100000, 2000, "OK", 1);
 }
 /**********************************************************
 Method checks if receiving process is finished or not.
