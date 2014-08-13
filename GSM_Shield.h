@@ -4,11 +4,15 @@
  http://www.creativecommons.org/licenses/by-sa/3.0/
  www.hwkitchen.com
 */
-#ifndef __GSM_Shield
-#define __GSM_Shield
 
 #include <SoftwareSerial.h>
 #include <Arduino.h>
+
+#ifndef __GSM_Shield
+#define __GSM_Shield
+
+
+
 
 #define GSM_LIB_VERSION 102 // library version X.YY (e.g. 1.00)
 
@@ -149,24 +153,27 @@ class GSM
 {
   public:
     byte comm_buf[COMM_BUF_LEN+1];  // communication buffer +1 for 0x00 termination
-    char SetupAPN(char * apn, char * username,char * password);
+    char SetupAPN(const char * apn, const char * username,const char * password);
     char SendATCmdGetResp(char const *AT_cmd_string,
                 uint16_t start_comm_tmout, uint16_t max_interchar_tmout,
                 byte no_of_attempts,char * output);
                 
-    int HttpGet(char * url,char * response);
+    int HttpGet(const char * url,char * response);
     // library version
     int LibVer(void);
     // constructor
-    GSM(byte powerPin,byte resetPin);
+    GSM(byte rxPin,byte txPin,byte powerPin,byte resetPin);
+    ~GSM();
     // serial line initialization
     //void InitSerLine(long baud_rate);
     // set comm. line status
     inline void SetCommLineStatus(byte new_status) {comm_line_status = new_status;};
     // get comm. line status
     inline byte GetCommLineStatus(void) {return comm_line_status;};
-
+    void Wait(byte seconds);
     void Reset();
+    
+  
     // turns on GSM module
     void TurnOn(long baud_rate);
     // sends some initialization parameters
@@ -257,7 +264,7 @@ class GSM
 #endif
 
   private:
-  
+    SoftwareSerial * sim_serial;
     byte _resetPin;
     byte _powerPin;
     byte comm_line_status;
