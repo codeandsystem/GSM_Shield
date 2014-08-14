@@ -10,39 +10,40 @@
 #include <avr/pgmspace.h>
 
 
-prog_char string_00[] PROGMEM = "AT+HTTPPARA=\"URL\",\"";   // "String 0" etc are strings to store - change to suit.
-prog_char string_01[] PROGMEM = "AT+HTTPINIT";
-prog_char string_02[] PROGMEM = "AT+HTTPPARA=\"CID\",1";
-prog_char string_03[] PROGMEM = "AT+HTTPACTION=0";
-prog_char string_04[] PROGMEM = "AT+HTTPREAD";
-prog_char string_05[] PROGMEM = "AT+HTTPTERM";
-prog_char string_06[] PROGMEM = "AT+SAPBR=3,1,\"Contype\",\"GPRS\"";
-prog_char string_07[] PROGMEM = "AT+SAPBR=3,1,\"APN\",\"%s\"";
-prog_char string_08[] PROGMEM = "AT+SAPBR=3,1,\"USER\",\"%s\"";
-prog_char string_09[] PROGMEM = "AT+SAPBR=3,1,\"PWD\",\"%s\"";
-prog_char string_10[] PROGMEM = "AT+SAPBR=1,1";
-prog_char string_11[] PROGMEM = "AT+CPBW=";
-prog_char string_12[] PROGMEM = "AT+CMGL=\"REC UNREAD\"\r";
-prog_char string_13[] PROGMEM = "AT+CMGL=\"REC READ\"\r";
-prog_char string_14[] PROGMEM = "AT+CMGL=\"ALL\"\r";
-
-PROGMEM const char *string_table [] = 	   // change "string_table" name to suit
+prog_char __gsm_string_00[] PROGMEM = "AT+HTTPPARA=\"URL\",\"";   // "String 0" etc are strings to store - change to suit.
+prog_char __gsm_string_01[] PROGMEM = "AT+HTTPINIT";
+prog_char __gsm_string_02[] PROGMEM = "AT+HTTPPARA=\"CID\",1";
+prog_char __gsm_string_03[] PROGMEM = "AT+HTTPACTION=0";
+prog_char __gsm_string_04[] PROGMEM = "AT+HTTPREAD";
+prog_char __gsm_string_05[] PROGMEM = "AT+HTTPTERM";
+prog_char __gsm_string_06[] PROGMEM = "AT+SAPBR=3,1,\"Contype\",\"GPRS\"";
+prog_char __gsm_string_07[] PROGMEM = "AT+SAPBR=3,1,\"APN\",\"%s\"";
+prog_char __gsm_string_08[] PROGMEM = "AT+SAPBR=3,1,\"USER\",\"%s\"";
+prog_char __gsm_string_09[] PROGMEM = "AT+SAPBR=3,1,\"PWD\",\"%s\"";
+prog_char __gsm_string_10[] PROGMEM = "AT+SAPBR=1,1";
+prog_char __gsm_string_11[] PROGMEM = "AT+CPBW=";
+prog_char __gsm_string_12[] PROGMEM = "AT+CMGL=\"REC UNREAD\"\r";
+prog_char __gsm_string_13[] PROGMEM = "AT+CMGL=\"REC READ\"\r";
+prog_char __gsm_string_14[] PROGMEM = "AT+CMGL=\"ALL\"\r";
+prog_char __gsm_string_15[] PROGMEM = "AT+SGPIO=";
+PROGMEM const char *__gsm_string_table [] = 	   // change "__gsm_string_table" name to suit
 {   
-  string_00,
-  string_01,
-  string_02,
-  string_03,
-  string_04,
-  string_05,
-  string_06,
-  string_07,
-  string_08,
-  string_09,
-  string_10,
-  string_11,
-  string_12,
-  string_13,
-  string_14
+  __gsm_string_00,
+  __gsm_string_01,
+  __gsm_string_02,
+  __gsm_string_03,
+  __gsm_string_04,
+  __gsm_string_05,
+  __gsm_string_06,
+  __gsm_string_07,
+  __gsm_string_08,
+  __gsm_string_09,
+  __gsm_string_10,
+  __gsm_string_11,
+  __gsm_string_12,
+  __gsm_string_13,
+  __gsm_string_14,
+  __gsm_string_15
 };
    
 extern "C" {
@@ -235,58 +236,89 @@ void GSM::RxInit(uint16_t start_comm_tmout, uint16_t max_interchar_tmout)
   sim_serial->flush(); // erase rx circular buffer
 }
 
+int GSM::GPIORead(int pin)
+{
+             char buffer[18];  
+             strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[15])));
+                
+             char buffer2[3];
+             itoa(pin,buffer2,10);
+             strcat(buffer,"1,");
+             strcat(buffer,buffer2);
+             
+              SendATCmdGetResp(buffer,1000,200,1,buffer);
+              char * ptr = strchr(buffer,':');
+              return strtol(ptr,NULL,10);
+
+}
+    void GSM::GPIOWrite(int pin, int value)
+    {
+           char buffer[18];
+          strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[15])));
+             char buffer2[3];
+             itoa(pin,buffer2,10);
+             strcat(buffer,"0,");
+             strcat(buffer,buffer2);
+             strcat(buffer,",1,");
+              itoa(value,buffer2,10);
+              strcat(buffer,buffer2);
+              
+              SendATCmdWaitResp(buffer,1000, 200 ,"OK", 5);
+    }
+    void GSM::GPIOMode(int pin,int mode)
+    {
+          char buffer[18];
+          strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[15])));
+          char buffer2[3];
+          itoa(pin,buffer2,10);
+        strcat(buffer,"0,");
+             strcat(buffer,buffer2);
+             strcat(buffer,",");
+               itoa(mode,buffer2,10);
+              strcat(buffer,buffer2);
+              
+         SendATCmdWaitResp(buffer,1000, 200 ,"OK", 5);      
+    }     
 
 int GSM::HttpGet(const char * url,char * response)
 {
-
+    Serial.println(url);
     int ret;
     char buffer[160] = "";
     
-    strcpy_P(buffer, (char*)pgm_read_word(&(string_table[0])));
+    //AT+HTTPINIT
+    strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[1])));
+    SendATCmdWaitResp(buffer,1000, 200 ,"OK", 5);
+    
+    //AT+HTTPPARA URL
+    strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[0])));
     strcat(buffer,url);
     strcat(buffer,"\"");
+    SendATCmdWaitResp(buffer,1000, 200 ,"OK", 5);
+          
+    //AT+HTTPPARA CID
+    strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[2])));
+    SendATCmdWaitResp(buffer,1000, 200 ,"OK", 5);
     
-   
-    SendATCmdWaitResp(buffer,2000, 200 ,"OK", 5);
-    
-    strcpy_P(buffer, (char*)pgm_read_word(&(string_table[1])));
-  
-    SendATCmdWaitResp(buffer,2000, 200 ,"OK", 5);
-    
-    strcpy_P(buffer, (char*)pgm_read_word(&(string_table[2])));
- 
-    SendATCmdWaitResp(buffer,3000, 200 ,"OK", 5);
-    
-    strcpy_P(buffer, (char*)pgm_read_word(&(string_table[3])));
-    
+    //AT+HTTPACTION CID
+    strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[3])));
     SendATCmdGetResp(buffer,20000,3000,1,buffer);
-    
-               Serial.println("AR");
-        Serial.println(buffer);         
-    char * ptr = strstr(buffer,"ERROR");
-    if(ptr)
+
+    char * ptr = strchr(buffer,',');
+    if(!ptr)
     {
       response[0]='\0';
       return -1;
     }
       
-      
-    ptr = strchr(buffer,',');
-    char ret_code_buffer[4];
-    memcpy(ret_code_buffer,&ptr[1],3);
-    
-    
-    ret_code_buffer[3]='\0';
-    ret = strtol(ret_code_buffer,NULL,10);
-    
-    if(ret == 200 && response)
+    ptr[4]='\0';
+    ret = strtol(ptr+1,NULL,10);
+
+    if(ret == 200)
     {
-        strcpy_P(buffer, (char*)pgm_read_word(&(string_table[4])));
+        strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[4])));
         SendATCmdGetResp(buffer,20000,2000,1,buffer); 
-        
-        Serial.println("HR");
-        Serial.println(buffer);
-        
+                
         char * lenStart = strchr(buffer,':');
         char * lenEnd;
         int length = strtol(lenStart+1,&lenEnd,10);  
@@ -310,22 +342,22 @@ char GSM::SetupAPN(const char * apn, const char * username,const char * password
     char buffer[50];
     char command[50];
     
-    strcpy_P(command, (char*)pgm_read_word(&(string_table[6])));
+    strcpy_P(command, (char*)pgm_read_word(&(__gsm_string_table[6])));
     SendATCmdWaitResp(command,2000, 200 ,"OK", 1);
     
-    strcpy_P(buffer, (char*)pgm_read_word(&(string_table[7])));
+    strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[7])));
     sprintf(command,buffer,apn);
     SendATCmdWaitResp(command,2000, 200, "OK", 1);
    
-    strcpy_P(buffer, (char*)pgm_read_word(&(string_table[8]))); 
+    strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[8]))); 
     sprintf(command,buffer,username);
     SendATCmdWaitResp(command,2000, 200, "OK", 1);
       
-    strcpy_P(buffer, (char*)pgm_read_word(&(string_table[9])));  
+    strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[9])));  
     sprintf(command,buffer,password);
     SendATCmdWaitResp(command,2000, 200, "OK", 1);
 
-    strcpy_P(command, (char*)pgm_read_word(&(string_table[10])));  
+    strcpy_P(command, (char*)pgm_read_word(&(__gsm_string_table[10])));  
     return SendATCmdWaitResp(command,100000, 2000, "OK", 1);
 }
 /**********************************************************
@@ -1738,13 +1770,13 @@ char GSM::IsSMSPresent(byte required_status)
 
   switch (required_status) {
     case SMS_UNREAD:
-      strcpy_P(buffer, (char*)pgm_read_word(&(string_table[12])));
+      strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[12])));
       break;
     case SMS_READ:
-      strcpy_P(buffer, (char*)pgm_read_word(&(string_table[13])));
+      strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[13])));
       break;
     case SMS_ALL:
-      strcpy_P(buffer, (char*)pgm_read_word(&(string_table[14])));
+      strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[14])));
       break;
   }
   sim_serial->write(buffer);
@@ -1789,7 +1821,7 @@ char GSM::IsSMSPresent(byte required_status)
         // <CR><LF> <data> <CR><LF>OK<CR><LF>
         p_char = strchr((char *)comm_buf,':');
         if (p_char != NULL) {
-          ret_val = atoi(p_char+1);
+          ret_val = strtol(p_char+1,NULL,10);
         }
       }
       else {
@@ -2283,7 +2315,7 @@ char GSM::WritePhoneNumber(byte position, char *phone_number)
   //send: AT+CPBW=XY,"00420123456789"
   // where XY = position,
   //       "00420123456789" = phone number string
-  strcpy_P(buffer, (char*)pgm_read_word(&(string_table[11])));
+  strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[11])));
   sim_serial->write(buffer);
   sim_serial->write((int)position);  
   sim_serial->write(",\"");
@@ -2341,7 +2373,7 @@ char GSM::DelPhoneNumber(byte position)
   
   //send: AT+CPBW=XY
   // where XY = position
-  strcpy_P(buffer, (char*)pgm_read_word(&(string_table[11])));
+  strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[11])));
   sim_serial->write(buffer);
   sim_serial->write((int)position);  
   sim_serial->write("\r");

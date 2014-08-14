@@ -157,6 +157,11 @@ class GSM
     char SendATCmdGetResp(char const *AT_cmd_string,
                 uint16_t start_comm_tmout, uint16_t max_interchar_tmout,
                 byte no_of_attempts,char * output);
+    
+    
+    int GPIORead(int pin);
+    void GPIOWrite(int pin, int value);
+    void GPIOMode(int pin,int mode);       
                 
     int HttpGet(const char * url,char * response);
     // library version
