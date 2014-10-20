@@ -159,6 +159,14 @@ class GSM
                 byte no_of_attempts,char * output);
     
     
+    void Send(const __FlashStringHelper *AT_cmd_string);
+    void Send(const char * AT_cmd_string);
+    
+    bool IsSimUnlocked();
+    bool IsSimRegistered();
+    bool IsGprsAttached();
+    
+    
     int GPIORead(int pin);
     void GPIOWrite(int pin, int value);
     void GPIOMode(int pin,int mode);       
@@ -167,7 +175,7 @@ class GSM
     // library version
     int LibVer(void);
     // constructor
-    GSM(byte rxPin,byte txPin,byte powerPin,byte resetPin);
+    GSM(Stream * stream,byte powerPin,byte resetPin);
     ~GSM();
     // serial line initialization
     //void InitSerLine(long baud_rate);
@@ -243,14 +251,15 @@ class GSM
     // routines regarding communication with the GSM module
     void RxInit(uint16_t start_comm_tmout, uint16_t max_interchar_tmout);
     byte IsRxFinished(void);
-    byte IsStringReceived(char const *compare_string);
+    byte IsStringReceived(const __FlashStringHelper * compare_string);
     byte WaitResp(uint16_t start_comm_tmout, uint16_t max_interchar_tmout);
     byte WaitResp(uint16_t start_comm_tmout, uint16_t max_interchar_tmout, 
-                  char const *expected_resp_string);
-    char SendATCmdWaitResp(char const *AT_cmd_string,
-               uint16_t start_comm_tmout, uint16_t max_interchar_tmout,
-               char const *response_string,
-               byte no_of_attempts);
+                  const __FlashStringHelper *expected_resp_string);
+    char SendATCmdWaitResp(const __FlashStringHelper *AT_cmd_string,
+          uint16_t start_comm_tmout,
+          uint16_t max_interchar_tmout,
+          const __FlashStringHelper *response_string,
+          byte no_of_attempts);
 			   
 	// new routine  TDGINO by Boris
 	
@@ -269,7 +278,7 @@ class GSM
 #endif
 
   private:
-    SoftwareSerial * sim_serial;
+    Stream * sim_serial;
     byte _resetPin;
     byte _powerPin;
     byte comm_line_status;

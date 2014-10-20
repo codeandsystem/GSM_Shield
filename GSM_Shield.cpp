@@ -3,14 +3,14 @@
  Released under the Creative Commons Attribution-Share Alike 3.0 License
  http://www.creativecommons.org/licenses/by-sa/3.0/
  www.hwkitchen.com
-*/
+*/                                                                   
 #include <Arduino.h>
 #include <SoftwareSerial.h>
-#include "GSM_Shield.h"   
+#include "GSM_Shield.h"
 #include <avr/pgmspace.h>
+ 
 
-
-prog_char __gsm_string_00[] PROGMEM = "AT+HTTPPARA=\"URL\",\"";   // "String 0" etc are strings to store - change to suit.
+/*prog_char __gsm_string_00[] PROGMEM = "AT+HTTPPARA=\"URL\",\"";   // "String 0" etc are strings to store - change to suit.
 prog_char __gsm_string_01[] PROGMEM = "AT+HTTPINIT";
 prog_char __gsm_string_02[] PROGMEM = "AT+HTTPPARA=\"CID\",1";
 prog_char __gsm_string_03[] PROGMEM = "AT+HTTPACTION=0";
@@ -27,7 +27,7 @@ prog_char __gsm_string_13[] PROGMEM = "AT+CMGL=\"REC READ\"\r";
 prog_char __gsm_string_14[] PROGMEM = "AT+CMGL=\"ALL\"\r";
 prog_char __gsm_string_15[] PROGMEM = "AT+SGPIO=";
 PROGMEM const char *__gsm_string_table [] = 	   // change "__gsm_string_table" name to suit
-{   
+{
   __gsm_string_00,
   __gsm_string_01,
   __gsm_string_02,
@@ -44,31 +44,31 @@ PROGMEM const char *__gsm_string_table [] = 	   // change "__gsm_string_table" n
   __gsm_string_13,
   __gsm_string_14,
   __gsm_string_15
-};
-   
+};    */
+
 extern "C" {
-  #include <string.h>
+#include <string.h>
 }
 
 
 
 
 #ifdef DEBUG_LED_ENABLED
-  int DEBUG_LED = 25;                // LED connected to digital pin 25
+int DEBUG_LED = 25;                // LED connected to digital pin 25
 
 
 void  GSM::BlinkDebugLED (byte num_of_blink)
-  {
-    byte i;
+{
+  byte i;
 
-    pinMode(DEBUG_LED, OUTPUT);      // sets the digital pin as output
-    for (i = 0; i < num_of_blink; i++) {
-      digitalWrite(DEBUG_LED, HIGH);   // sets the LED on
-      delay(50);
-      digitalWrite(DEBUG_LED, LOW);   // sets the LED off
-      delay(500);
-    }
+  pinMode(DEBUG_LED, OUTPUT);      // sets the digital pin as output
+  for (i = 0; i < num_of_blink; i++) {
+    digitalWrite(DEBUG_LED, HIGH);   // sets the LED on
+    delay(50);
+    digitalWrite(DEBUG_LED, LOW);   // sets the LED off
+    delay(500);
   }
+}
 #endif
 
 #ifdef DEBUG_PRINT
@@ -80,25 +80,29 @@ Second method prints integer numbers.
 
 Note:
 =====
-The serial line is connected to the GSM module and is 
+The serial line is connected to the GSM module and is
 used for sending AT commands. There is used "trick" that GSM
 module accepts not valid AT command strings because it doesn't
 understand them and still waits for some valid AT command.
 So after all debug strings are sent we send just AT<CR> as
-a valid AT command and GSM module responds by OK. So previous 
+a valid AT command and GSM module responds by OK. So previous
 debug strings are overwritten and GSM module is not influenced
-by these debug texts 
+by these debug texts
 
 
 string_to_print:  pointer to the string to be print out
 last_debug_print: 0 - this is not last debug info, we will
                       continue with sending... so don't send
                       AT<CR>(see explanation above)
-                  1 - we are finished with sending debug info 
-                      for this time and finished AT<CR> 
+                  1 - we are finished with sending debug info
+                      for this time and finished AT<CR>
                       will be sent(see explanation above)
 
 **********************************************************/
+
+
+
+
 void GSM::DebugPrint(const char *string_to_print, byte last_debug_print)
 {
   if (last_debug_print) {
@@ -117,11 +121,11 @@ void GSM::DebugPrint(int number_to_print, byte last_debug_print)
 }
 #endif
 
-  GSM::~GSM()
-  {
-      delete sim_serial;  
-  }
-  
+GSM::~GSM()
+{
+  delete sim_serial;
+}
+
 /**********************************************************
 Method returns GSM library version
 
@@ -133,6 +137,18 @@ int GSM::LibVer(void)
   return (GSM_LIB_VERSION);
 }
 
+bool GSM::IsSimUnlocked(){
+    return SendATCmdWaitResp(F("AT+CPIN?"), 10000, 100 , F("+CPIN: READY"), 1) == AT_RESP_OK;
+}
+
+bool GSM::IsSimRegistered(){
+    return SendATCmdWaitResp(F("AT+CREG?"), 10000, 100 , F("+CREG: 0,1"), 1) == AT_RESP_OK;
+}
+
+bool GSM::IsGprsAttached(){
+    return SendATCmdWaitResp(F("AT+CGATT?"), 10000, 100 , F("+CGATT: 1"), 1) == AT_RESP_OK;
+}
+
 /**********************************************************
   Constructor definition
 ***********************************************************/
@@ -140,22 +156,22 @@ void GSM::Reset()
 {
 
 #ifdef DEBUG_PRINT
-        DebugPrint("Resetting...");
-        #endif
+  DebugPrint("Resetting...");
+#endif
 
-  digitalWrite(_resetPin,HIGH);
-  delay(1500);
-  digitalWrite(_resetPin,LOW);
-  #ifdef DEBUG_PRINT
-        DebugPrint("OK\n");
-        #endif
+  digitalWrite(_resetPin, HIGH);
+  delay(2500);
+  digitalWrite(_resetPin, LOW);
+#ifdef DEBUG_PRINT
+  DebugPrint("OK\n");
+#endif
 }
-GSM::GSM(byte rxPin,byte txPin,byte powerPin,byte resetPin)
+GSM::GSM(Stream * stream, byte powerPin, byte resetPin)
 {
-  sim_serial = new SoftwareSerial(rxPin,txPin);
+  sim_serial = stream;
   _powerPin =  powerPin;
   _resetPin =  resetPin;
-  
+
   // set some GSM pins as inputs, some as outputs
   pinMode(_powerPin, OUTPUT);               // sets pin 5 as output
   pinMode(_resetPin, OUTPUT);            // sets pin 4 as output
@@ -163,12 +179,12 @@ GSM::GSM(byte rxPin,byte txPin,byte powerPin,byte resetPin)
   //pinMode(DTMF_OUTPUT_ENABLE, OUTPUT);   // sets pin 2 as output
   // deactivation of IC8 so DTMF is disabled by default
   //digitalWrite(DTMF_OUTPUT_ENABLE, LOW);
-  
+
   // not registered yet
   module_status = STATUS_NONE;
 
   // initialization of speaker volume
-  last_speaker_volume = 0; 
+  last_speaker_volume = 0;
 }
 
 /**********************************************************
@@ -204,10 +220,10 @@ void GSM::InitSerLine(long baud_rate)
 		  // default is optional
 		}
 	  sim_serial->write("AT+IPR=");
-	  sim_serial->write(baud_rate);    
+	  sim_serial->write(baud_rate);
 	  sim_serial->write("\r"); // send <CR>
   }
-  
+
   // communication line is not used yet = free
   SetCommLineStatus(CLS_FREE);
   // pointer is initialized to the first item of comm. buffer
@@ -219,7 +235,7 @@ void GSM::InitSerLine(long baud_rate)
 
   start_comm_tmout    - maximum waiting time for receiving the first response
                         character (in msec.)
-  max_interchar_tmout - maximum tmout between incoming characters 
+  max_interchar_tmout - maximum tmout between incoming characters
                         in msec.
   if there is no other incoming character longer then specified
   tmout(in msec) receiving process is considered as finished
@@ -238,127 +254,128 @@ void GSM::RxInit(uint16_t start_comm_tmout, uint16_t max_interchar_tmout)
 
 int GSM::GPIORead(int pin)
 {
-             char buffer[18];  
-             strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[15])));
-                
-             char buffer2[3];
-             itoa(pin,buffer2,10);
-             strcat(buffer,"1,");
-             strcat(buffer,buffer2);
-             
-              SendATCmdGetResp(buffer,1000,200,1,buffer);
-              char * ptr = strchr(buffer,':');
-              return strtol(ptr,NULL,10);
+  /*char buffer[18];
+  strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[15])));
+
+  char buffer2[3];
+  itoa(pin, buffer2, 10);
+  strcat(buffer, "1,");
+  strcat(buffer, buffer2);
+
+  SendATCmdGetResp(buffer, 1000, 200, 1, buffer);
+  char * ptr = strchr(buffer, ':');
+  return strtol(ptr, NULL, 10);   */
 
 }
-    void GSM::GPIOWrite(int pin, int value)
-    {
-           char buffer[18];
-          strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[15])));
-             char buffer2[3];
-             itoa(pin,buffer2,10);
-             strcat(buffer,"0,");
-             strcat(buffer,buffer2);
-             strcat(buffer,",1,");
-              itoa(value,buffer2,10);
-              strcat(buffer,buffer2);
-              
-              SendATCmdWaitResp(buffer,1000, 200 ,"OK", 5);
-    }
-    void GSM::GPIOMode(int pin,int mode)
-    {
-          char buffer[18];
-          strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[15])));
-          char buffer2[3];
-          itoa(pin,buffer2,10);
-        strcat(buffer,"0,");
-             strcat(buffer,buffer2);
-             strcat(buffer,",");
-               itoa(mode,buffer2,10);
-              strcat(buffer,buffer2);
-              
-         SendATCmdWaitResp(buffer,1000, 200 ,"OK", 5);      
-    }     
-
-int GSM::HttpGet(const char * url,char * response)
+void GSM::GPIOWrite(int pin, int value)
 {
-    Serial.println(url);
-    int ret;
-    char buffer[160] = "";
-    
-    //AT+HTTPINIT
-    strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[1])));
-    SendATCmdWaitResp(buffer,1000, 200 ,"OK", 5);
-    
-    //AT+HTTPPARA URL
-    strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[0])));
-    strcat(buffer,url);
-    strcat(buffer,"\"");
-    SendATCmdWaitResp(buffer,1000, 200 ,"OK", 5);
+  /*char buffer[18];
+  strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[15])));
+  char buffer2[3];
+  itoa(pin, buffer2, 10);
+  strcat(buffer, "0,");
+  strcat(buffer, buffer2);
+  strcat(buffer, ",1,");
+  itoa(value, buffer2, 10);
+  strcat(buffer, buffer2);
+
+  SendATCmdWaitResp(buffer, 1000, 200 , "OK", 5);   */
+}
+void GSM::GPIOMode(int pin, int mode)
+{
+  /*char buffer[18];
+  strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[15])));
+  char buffer2[3];
+  itoa(pin, buffer2, 10);
+  strcat(buffer, "0,");
+  strcat(buffer, buffer2);
+  strcat(buffer, ",");
+  itoa(mode, buffer2, 10);
+  strcat(buffer, buffer2);
+
+  SendATCmdWaitResp(buffer, 1000, 200 , "OK", 5);    */
+}
+
+
+
+int GSM::HttpGet(const char * url, char * response)
+{
+
+  int ret;
+      
+  SendATCmdWaitResp(F("AT+HTTPINIT"), 1000, 200 , F("OK"), 5);
+      
+
+  sim_serial->print(F("AT+HTTPPARA=\"URL\",\""));
+  sim_serial->print(url);
+  SendATCmdWaitResp(F("\""), 1000, 200 , F("OK"), 5);
+
+            
+              
+  //AT+HTTPPARA CID
+  SendATCmdWaitResp(F("AT+HTTPPARA=\"CID\",1"), 1000, 200 , F("OK"), 5);
           
-    //AT+HTTPPARA CID
-    strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[2])));
-    SendATCmdWaitResp(buffer,1000, 200 ,"OK", 5);
+          
+             
+  //AT+HTTPACTION CID
+  
+  sim_serial->println(F("AT+HTTPACTION=0"));
+  WaitResp(2000,3000);
+  
+  char * ptr = strchr((char *)comm_buf, ',');
+  if (!ptr)
+  {
+    response[0] = '\0';
+    return -1;
+  }
+
+  ptr[4] = '\0';
+  ret = strtol(ptr + 1, NULL, 10);
+
+
     
-    //AT+HTTPACTION CID
-    strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[3])));
-    SendATCmdGetResp(buffer,20000,3000,1,buffer);
-
-    char * ptr = strchr(buffer,',');
-    if(!ptr)
-    {
-      response[0]='\0';
-      return -1;
-    }
-      
-    ptr[4]='\0';
-    ret = strtol(ptr+1,NULL,10);
-
-    if(ret == 200)
-    {
-        strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[4])));
-        SendATCmdGetResp(buffer,20000,2000,1,buffer); 
-                
-        char * lenStart = strchr(buffer,':');
-        char * lenEnd;
-        int length = strtol(lenStart+1,&lenEnd,10);  
-        strncpy(response,lenEnd+2,length); 
-        response[length] = '\0';   
-        
-       
-    }
+  if (ret == 200)
+  {
+    sim_serial->println(F("AT+HTTPREAD"));
+    WaitResp(20000,2000);
     
-    SendATCmdWaitResp("AT+HTTPTERM",2000, 200 ,"OK", 5);
+    char * lenStart = strchr((char *)comm_buf, ':');
+    char * lenEnd;
+    int length = strtol(lenStart + 1, &lenEnd, 10);
+    strncpy(response, lenEnd + 2, length);
+    response[length] = '\0';
 
-    return ret;   
+
+  }
+  
+
+  SendATCmdWaitResp(F("AT+HTTPTERM"), 2000, 200 , F("OK"), 5);
+
+  return ret;
 
 
 
 }
 
 
-char GSM::SetupAPN(const char * apn, const char * username,const char * password)
+char GSM::SetupAPN(const char * apn, const char * username, const char * password)
 {
-    char buffer[50];
-    char command[50];
-    
-    strcpy_P(command, (char*)pgm_read_word(&(__gsm_string_table[6])));
-    SendATCmdWaitResp(command,2000, 200 ,"OK", 1);
-    
-    strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[7])));
-    sprintf(command,buffer,apn);
-    SendATCmdWaitResp(command,2000, 200, "OK", 1);
-   
-    strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[8]))); 
-    sprintf(command,buffer,username);
-    SendATCmdWaitResp(command,2000, 200, "OK", 1);
-      
-    strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[9])));  
-    sprintf(command,buffer,password);
-    SendATCmdWaitResp(command,2000, 200, "OK", 1);
+  SendATCmdWaitResp(F("AT+SAPBR=3,1,\"Contype\",\"GPRS\""), 2000, 200 , F("OK"), 1);
 
-    strcpy_P(command, (char*)pgm_read_word(&(__gsm_string_table[10])));  
-    return SendATCmdWaitResp(command,100000, 2000, "OK", 1);
+  sim_serial->print(F("AT+SAPBR=3,1,\"APN\",\""));
+  sim_serial->print(apn);
+  SendATCmdWaitResp(F("\""), 2000, 200, F("OK"), 1);
+  
+  
+  sim_serial->print(F("AT+SAPBR=3,1,\"USER\",\""));
+  sim_serial->print(username);
+  SendATCmdWaitResp(F("\""), 2000, 200, F("OK"), 1);
+
+  sim_serial->print(F("AT+SAPBR=3,1,\"PWD\",\"%s\""));
+  sim_serial->print(password);
+  SendATCmdWaitResp(F("\""), 2000, 200, F("OK"), 1);
+
+  return SendATCmdWaitResp(F("AT+SAPBR=1,1"), 100000, 2000, F("OK"), 1);
 }
 /**********************************************************
 Method checks if receiving process is finished or not.
@@ -381,31 +398,31 @@ byte GSM::IsRxFinished(void)
     // Reception is not started yet - check tmout
     if (!sim_serial->available()) {
       // still no character received => check timeout
-	/*  
-	#ifdef DEBUG_GSMRX
-		
-			DebugPrint("\r\nDEBUG: reception timeout", 0);			
-			Serial.print((unsigned long)(millis() - prev_time));	
-			DebugPrint("\r\nDEBUG: start_reception_tmout\r\n", 0);			
-			Serial.print(start_reception_tmout);	
-			
-		
-	#endif
-	*/
+      /*
+      #ifdef DEBUG_GSMRX
+
+      		DebugPrint("\r\nDEBUG: reception timeout", 0);
+      		Serial.print((unsigned long)(millis() - prev_time));
+      		DebugPrint("\r\nDEBUG: start_reception_tmout\r\n", 0);
+      		Serial.print(start_reception_tmout);
+
+
+      #endif
+      */
       if ((unsigned long)(millis() - prev_time) >= start_reception_tmout) {
         // timeout elapsed => GSM module didn't start with response
         // so communication is takes as finished
-		/*
-			#ifdef DEBUG_GSMRX		
-				DebugPrint("\r\nDEBUG: RECEPTION TIMEOUT", 0);	
-			#endif
-		*/
+        /*
+        	#ifdef DEBUG_GSMRX
+        		DebugPrint("\r\nDEBUG: RECEPTION TIMEOUT", 0);
+        	#endif
+        */
         comm_buf[comm_buf_len] = 0x00;
         ret_val = RX_TMOUT_ERR;
       }
     }
     else {
-      // at least one character received => so init inter-character 
+      // at least one character received => so init inter-character
       // counting process again and go to the next state
       prev_time = millis(); // init tmout for inter-character space
       rx_state = RX_ALREADY_STARTED;
@@ -419,74 +436,74 @@ byte GSM::IsRxFinished(void)
     num_of_bytes = sim_serial->available();
     // if there are some received bytes postpone the timeout
     if (num_of_bytes) prev_time = millis();
-      
-    // read all received bytes      
+
+    // read all received bytes
     while (num_of_bytes) {
       num_of_bytes--;
       if (comm_buf_len < COMM_BUF_LEN) {
         // we have still place in the GSM internal comm. buffer =>
-        // move available bytes from circular buffer 
+        // move available bytes from circular buffer
         // to the rx buffer
         *p_comm_buf = sim_serial->read();
 
         p_comm_buf++;
         comm_buf_len++;
         comm_buf[comm_buf_len] = 0x00;  // and finish currently received characters
-                                        // so after each character we have
-                                        // valid string finished by the 0x00
+        // so after each character we have
+        // valid string finished by the 0x00
       }
       else {
         // comm buffer is full, other incoming characters
-        // will be discarded 
-        // but despite of we have no place for other characters 
-        // we still must to wait until  
+        // will be discarded
+        // but despite of we have no place for other characters
+        // we still must to wait until
         // inter-character tmout is reached
-        
-        // so just readout character from circular RS232 buffer 
+
+        // so just readout character from circular RS232 buffer
         // to find out when communication id finished(no more characters
         // are received in inter-char timeout)
         sim_serial->read();
       }
     }
 
-    // finally check the inter-character timeout 
-	/*
-	#ifdef DEBUG_GSMRX
-		
-			DebugPrint("\r\nDEBUG: intercharacter", 0);			
-			Serial.print((unsigned long)(millis() - prev_time));	
-			DebugPrint("\r\nDEBUG: interchar_tmout\r\n", 0);			
-			Serial.print(interchar_tmout);	
-			
-		
-	#endif
-	*/
+    // finally check the inter-character timeout
+    /*
+    #ifdef DEBUG_GSMRX
+
+    		DebugPrint("\r\nDEBUG: intercharacter", 0);
+    		Serial.print((unsigned long)(millis() - prev_time));
+    		DebugPrint("\r\nDEBUG: interchar_tmout\r\n", 0);
+    		Serial.print(interchar_tmout);
+
+
+    #endif
+    */
     if ((unsigned long)(millis() - prev_time) >= interchar_tmout) {
       // timeout between received character was reached
       // reception is finished
       // ---------------------------------------------
-	  
-		/*
-	  	#ifdef DEBUG_GSMRX
-		
-			DebugPrint("\r\nDEBUG: OVER INTER TIMEOUT", 0);					
-		#endif
-		*/
+
+      /*
+      	#ifdef DEBUG_GSMRX
+
+      	DebugPrint("\r\nDEBUG: OVER INTER TIMEOUT", 0);
+      #endif
+      */
       comm_buf[comm_buf_len] = 0x00;  // for sure finish string again
-                                      // but it is not necessary
+      // but it is not necessary
       ret_val = RX_FINISHED;
     }
   }
-		
-  	#ifdef DEBUG_GSMRX
-		if (ret_val == RX_FINISHED){
-			DebugPrint("DEBUG: Received string\r\n", 0);
-			for (int i=0; i<comm_buf_len; i++){
-				Serial.print(byte(comm_buf[i]));	
-			}
-		}
-	#endif
-	
+
+#ifdef DEBUG_GSMRX
+  if (ret_val == RX_FINISHED) {
+    DebugPrint("DEBUG: Received string\r\n", 0);
+    for (int i = 0; i < comm_buf_len; i++) {
+      Serial.print(byte(comm_buf[i]));
+    }
+  }
+#endif
+
   return (ret_val);
 }
 
@@ -498,42 +515,27 @@ compare_string - pointer to the string which should be find
 return: 0 - string was NOT received
         1 - string was received
 **********************************************************/
-byte GSM::IsStringReceived(char const *compare_string)
+byte GSM::IsStringReceived(const __FlashStringHelper * compare_string)
 {
-  char *ch;
-  byte ret_val = 0;
-
-  if(comm_buf_len) {
-  /*
-		#ifdef DEBUG_GSMRX
-			DebugPrint("DEBUG: Compare the string: \r\n", 0);
+  if (comm_buf_len) {
+  
+		/*#ifdef DEBUG_GSMRX
+			Serial.println("DEBUG: Compare the string: ");
 			for (int i=0; i<comm_buf_len; i++){
-				Serial.print(byte(comm_buf[i]));	
+				Serial.write(byte(comm_buf[i]));	
 			}
 			
-			DebugPrint("\r\nDEBUG: with the string: \r\n", 0);
+			Serial.println("DEBUG: with the string: ");
 			Serial.print(compare_string);	
-			DebugPrint("\r\n", 0);
-		#endif
-	*/
-    ch = strstr((char *)comm_buf, compare_string);
-    if (ch != NULL) {
-      ret_val = 1;
-	  /*#ifdef DEBUG_PRINT
-		DebugPrint("\r\nDEBUG: expected string was received\r\n", 0);
-	  #endif
-	  */
+			Serial.println(" ");
+		#endif*/
+	
+	if (strstr_P((char *)comm_buf, (const prog_char *)compare_string) != NULL) {
+	    return 1;
+	} 
     }
-	else
-	{
-	  /*#ifdef DEBUG_PRINT
-		DebugPrint("\r\nDEBUG: expected string was NOT received\r\n", 0);
-	  #endif
-	  */
-	}
-  }
 
-  return (ret_val);
+    return 0;
 }
 
 /**********************************************************
@@ -541,19 +543,19 @@ Method waits for response
 
       start_comm_tmout    - maximum waiting time for receiving the first response
                             character (in msec.)
-      max_interchar_tmout - maximum tmout between incoming characters 
-                            in msec.  
-return: 
+      max_interchar_tmout - maximum tmout between incoming characters
+                            in msec.
+return:
       RX_FINISHED         finished, some character was received
 
-      RX_TMOUT_ERR        finished, no character received 
+      RX_TMOUT_ERR        finished, no character received
                           initial communication tmout occurred
 **********************************************************/
 byte GSM::WaitResp(uint16_t start_comm_tmout, uint16_t max_interchar_tmout)
 {
   byte status;
 
-  RxInit(start_comm_tmout, max_interchar_tmout); 
+  RxInit(start_comm_tmout, max_interchar_tmout);
   // wait until response is not finished
   do {
     status = IsRxFinished();
@@ -563,31 +565,31 @@ byte GSM::WaitResp(uint16_t start_comm_tmout, uint16_t max_interchar_tmout)
 
 
 char GSM::SendATCmdGetResp(char const *AT_cmd_string,
-                uint16_t start_comm_tmout, uint16_t max_interchar_tmout,
-                byte no_of_attempts,char * output)
+                           uint16_t start_comm_tmout, uint16_t max_interchar_tmout,
+                           byte no_of_attempts, char * output)
 {
 
   byte i;
   byte j;
-  
+
   for (i = 0; i < no_of_attempts; i++) {
-    // delay 500 msec. before sending next repeated AT command 
+    // delay 500 msec. before sending next repeated AT command
     // so if we have no_of_attempts=1 tmout will not occurred
-    if (i > 0) delay(500); 
+    if (i > 0) delay(500);
 
     sim_serial->println(AT_cmd_string);
     if (WaitResp(start_comm_tmout, max_interchar_tmout) == RX_FINISHED) {
-      
-         for(j=0;j<comm_buf_len;j++)
-            {
-                output[j]=(char)comm_buf[j];
-            }
-            output[comm_buf_len]='\0';
-            
-         return AT_RESP_OK;
+
+      for (j = 0; j < comm_buf_len; j++)
+      {
+        output[j] = (char)comm_buf[j];
+      }
+      output[comm_buf_len] = '\0';
+
+      return AT_RESP_OK;
     }
 
-    
+
   }
 
   return AT_RESP_ERR_NO_RESP;
@@ -596,21 +598,22 @@ char GSM::SendATCmdGetResp(char const *AT_cmd_string,
 
 /**********************************************************
 Method waits for response with specific response string
-    
+
       start_comm_tmout    - maximum waiting time for receiving the first response
                             character (in msec.)
-      max_interchar_tmout - maximum tmout between incoming characters 
-                            in msec.  
+      max_interchar_tmout - maximum tmout between incoming characters
+                            in msec.
       expected_resp_string - expected string
-return: 
+return:
       RX_FINISHED_STR_RECV,     finished and expected string received
       RX_FINISHED_STR_NOT_RECV  finished, but expected string not received
-      RX_TMOUT_ERR              finished, no character received 
+      RX_TMOUT_ERR              finished, no character received
                                 initial communication tmout occurred
 **********************************************************/
 byte GSM::WaitResp(uint16_t start_comm_tmout, uint16_t max_interchar_tmout, 
-                   char const *expected_resp_string)
+		const __FlashStringHelper *expected_resp_string)
 {
+  // TODO unify with other WaitResp above.
   byte status;
   byte ret_val;
 
@@ -620,10 +623,19 @@ byte GSM::WaitResp(uint16_t start_comm_tmout, uint16_t max_interchar_tmout,
     status = IsRxFinished();
   } while (status == RX_NOT_FINISHED);
 
+#ifdef DEBUG_GSMRX
+  if (status == RX_FINISHED){
+    for (int i=0; i<comm_buf_len; i++){
+      char c = comm_buf[i];
+      Serial.print(c);
+    }
+    Serial.println();
+  }
+#endif
+
   if (status == RX_FINISHED) {
     // something was received but what was received?
-    // ---------------------------------------------
-	
+
     if(IsStringReceived(expected_resp_string)) {
       // expected string was received
       // ----------------------------
@@ -633,7 +645,6 @@ byte GSM::WaitResp(uint16_t start_comm_tmout, uint16_t max_interchar_tmout,
   }
   else {
     // nothing was received
-    // --------------------
     ret_val = RX_TMOUT_ERR;
   }
   return (ret_val);
@@ -643,15 +654,17 @@ byte GSM::WaitResp(uint16_t start_comm_tmout, uint16_t max_interchar_tmout,
 /**********************************************************
 Method sends AT command and waits for response
 
-return: 
+return:
       AT_RESP_ERR_NO_RESP = -1,   // no response received
       AT_RESP_ERR_DIF_RESP = 0,   // response_string is different from the response
       AT_RESP_OK = 1,             // response_string was included in the response
 **********************************************************/
-char GSM::SendATCmdWaitResp(char const *AT_cmd_string,
-                uint16_t start_comm_tmout, uint16_t max_interchar_tmout,
-                char const *response_string,
-                byte no_of_attempts)
+char GSM::SendATCmdWaitResp(
+    const __FlashStringHelper *AT_cmd_string,
+    uint16_t start_comm_tmout,
+    uint16_t max_interchar_tmout,
+    const __FlashStringHelper *response_string,
+    byte no_of_attempts)
 {
   byte status;
   char ret_val = AT_RESP_ERR_NO_RESP;
@@ -663,7 +676,6 @@ char GSM::SendATCmdWaitResp(char const *AT_cmd_string,
     if (i > 0) delay(500); 
 
     sim_serial->println(AT_cmd_string);
-   
     status = WaitResp(start_comm_tmout, max_interchar_tmout); 
     if (status == RX_FINISHED) {
       // something was received but what was received?
@@ -673,15 +685,14 @@ char GSM::SendATCmdWaitResp(char const *AT_cmd_string,
         break;  // response is OK => finish
       }
       else ret_val = AT_RESP_ERR_DIF_RESP;
-
     }
     else {
- 
+      // nothing was received
+      // --------------------
       ret_val = AT_RESP_ERR_NO_RESP;
     }
     
   }
-
 
   return (ret_val);
 }
@@ -693,7 +704,7 @@ bits in the status variable
 
 - these methods do not communicate with the GSM module
 
-return values: 
+return values:
       0 - not true (not active)
       >0 - true (active)
 **********************************************************/
@@ -708,170 +719,85 @@ byte GSM::IsInitialized(void)
 }
 
 /**********************************************************
-  Checks if the GSM module is responding 
+  Checks if the GSM module is responding
   to the AT command
-  - if YES nothing is made 
-  - if NO GSM module is turned on 
+  - if YES nothing is made
+  - if NO GSM module is turned on
 **********************************************************/
 void GSM::TurnOn(long baud_rate)
 {
   SetCommLineStatus(CLS_ATCMD);
-  sim_serial->begin(baud_rate);
-  
-  #ifdef DEBUG_PRINT
-    // parameter 0 - because module is off so it is not necessary 
-    // to send finish AT<CR> here
-    DebugPrint("DEBUG: baud ", 0);
-	DebugPrint(baud_rate, 0);
+
+#ifdef DEBUG_PRINT
+  // parameter 0 - because module is off so it is not necessary
+  // to send finish AT<CR> here
+  DebugPrint("DEBUG: baud ", 0);
+  DebugPrint(baud_rate, 0);
 #endif
-  
-  if (AT_RESP_ERR_NO_RESP == SendATCmdWaitResp("AT", 500, 100, "OK", 5)) {		//check power
+
+  if (AT_RESP_ERR_NO_RESP == SendATCmdWaitResp(F("AT"), 500, 100, F("OK"), 5)) {		//check power
     // there is no response => turn on the module
-  
-		#ifdef DEBUG_PRINT
-			// parameter 0 - because module is off so it is not necessary 
-			// to send finish AT<CR> here
-			DebugPrint("DEBUG: GSM module is off\r\n", 0);
-			DebugPrint("DEBUG: start the module\r\n", 0);
-		#endif
-		
-		// generate turn on pulse
-		digitalWrite(_powerPin, HIGH);
-		delay(1200);
-		digitalWrite(_powerPin, LOW);
-		delay(5000);
-	}
-	else
-	{
-		#ifdef DEBUG_PRINT
-			// parameter 0 - because module is off so it is not necessary 
-			// to send finish AT<CR> here
-			DebugPrint("DEBUG: GSM module is on\r\n", 0);
-		#endif
-	}
-	if (AT_RESP_ERR_DIF_RESP == SendATCmdWaitResp("AT", 500, 100, "OK", 5)) {		//check OK
-			
-		#ifdef DEBUG_PRINT
-			// parameter 0 - because module is off so it is not necessary 
-			// to send finish AT<CR> here
-			DebugPrint("DEBUG: the baud is not ok\r\n", 0);
-		#endif
-			  //SendATCmdWaitResp("AT+IPR=9600", 500, 50, "OK", 5);
-			  for (int i=1;i<7;i++){
-					switch (i) {
-					case 1:
-					  sim_serial->begin(4800);
-						#ifdef DEBUG_PRINT
-							DebugPrint("DEBUG: provo Baud 4800\r\n", 0);
-						#endif
-					  break;
-					case 2:
-					  sim_serial->begin(9600);
-					  #ifdef DEBUG_PRINT
-							DebugPrint("DEBUG: provo Baud 9600\r\n", 0);
-						#endif
-					  break;
-					case 3:
-					  sim_serial->begin(19200);
-					  #ifdef DEBUG_PRINT
-							DebugPrint("DEBUG: provo Baud 19200\r\n", 0);
-						#endif
-					  break;
-					case 4:
-					  sim_serial->begin(38400);
-					  #ifdef DEBUG_PRINT
-							DebugPrint("DEBUG: provo Baud 38400\r\n", 0);
-						#endif
-					  break;
-					case 5:
-					  sim_serial->begin(57600);
-					  #ifdef DEBUG_PRINT
-							DebugPrint("DEBUG: provo Baud 57600\r\n", 0);
-						#endif
-					  break;
-					case 6:
-					  sim_serial->begin(115200);
-					  #ifdef DEBUG_PRINT
-							DebugPrint("DEBUG: provo Baud 115200\r\n", 0);
-						#endif
-					  break;
-					  // if nothing else matches, do the default
-					  // default is optional
-					}
-					
-					/*
-					  p_char = strchr((char *)(comm_buf),',');
-					  p_char1 = p_char+2; // we are on the first phone number character
-					  p_char = strchr((char *)(p_char1),'"');
-					  if (p_char != NULL) {
-						*p_char = 0; // end of string
-						strcpy(phone_number, (char *)(p_char1));
-					  }
-					*/  
-	  
-	  
-				  delay(100);
-				  /*sprintf (buff,"AT+IPR=%f",baud_rate);
-					#ifdef DEBUG_PRINT
-						// parameter 0 - because module is off so it is not necessary 
-						// to send finish AT<CR> here
-						DebugPrint("DEBUG: Stringa ", 0);
-						DebugPrint(buff, 0);
-					#endif
-					*/
-				  sim_serial->write("AT+IPR=");
-				  sim_serial->write(baud_rate);    
-				  sim_serial->write("\r"); // send <CR>
-				  delay(500);
-				  sim_serial->begin(baud_rate);
-				  delay(100);
-				  if (AT_RESP_OK == SendATCmdWaitResp("AT", 500, 100, "OK", 5)){
-						#ifdef DEBUG_PRINT
-							// parameter 0 - because module is off so it is not necessary 
-							// to send finish AT<CR> here
-							DebugPrint("DEBUG: ricevuto ok da modulo, baud impostato: ", 0);							
-							DebugPrint(baud_rate, 0);	
-						#endif
-						break;					
-				}
-				  
-			  }
-			  
-			  // communication line is not used yet = free
-			  SetCommLineStatus(CLS_FREE);
-			  // pointer is initialized to the first item of comm. buffer
-			  p_comm_buf = &comm_buf[0];
-  
-  
-		if (AT_RESP_ERR_NO_RESP == SendATCmdWaitResp("AT", 500, 50, "OK", 5)) {
-			#ifdef DEBUG_PRINT
-				// parameter 0 - because module is off so it is not necessary 
-				// to send finish AT<CR> here
-				DebugPrint("DEBUG: No answer from the module\r\n", 0);
-			#endif
-		}
-		else{
-	
-			#ifdef DEBUG_PRINT
-				// parameter 0 - because module is off so it is not necessary 
-				// to send finish AT<CR> here
-				DebugPrint("DEBUG: 1 baud ok\r\n", 0);
-			#endif
-		}
+
+#ifdef DEBUG_PRINT
+    // parameter 0 - because module is off so it is not necessary
+    // to send finish AT<CR> here
+    DebugPrint("DEBUG: GSM module is off\r\n", 0);
+    DebugPrint("DEBUG: start the module\r\n", 0);
+#endif
+
+    // generate turn on pulse
+    digitalWrite(_powerPin, HIGH);
+    delay(1200);
+    digitalWrite(_powerPin, LOW);
+    delay(5000);
 
 
-	}
-	else
-	{
-		#ifdef DEBUG_PRINT
-			DebugPrint("DEBUG: 2 GSM module is on and baud is ok\r\n", 0);
-		#endif
-  
-	}
+  }
+  else
+  {
+#ifdef DEBUG_PRINT
+    // parameter 0 - because module is off so it is not necessary
+    // to send finish AT<CR> here
+    DebugPrint("DEBUG: GSM module is on\r\n", 0);
+#endif
+  }
+
+
+
+  sim_serial->write("AT+IPR=");
+  sim_serial->write(baud_rate);
+  sim_serial->write("\r"); // send <CR>
+  delay(500);
+
+  // communication line is not used yet = free
   SetCommLineStatus(CLS_FREE);
+  // pointer is initialized to the first item of comm. buffer
+  p_comm_buf = &comm_buf[0];
 
-  // send collection of first initialization parameters for the GSM module    
-  InitParam(PARAM_SET_0);
+#ifdef DEBUG_PRINT
+  if (AT_RESP_ERR_NO_RESP == SendATCmdWaitResp("AT", 500, 50, "OK", 5)) {
+
+    // parameter 0 - because module is off so it is not necessary
+    // to send finish AT<CR> here
+    DebugPrint("DEBUG: No answer from the module\r\n", 0);
+
+  }
+  else {
+
+
+    // parameter 0 - because module is off so it is not necessary
+    // to send finish AT<CR> here
+    DebugPrint("DEBUG: 1 baud ok\r\n", 0);
+
+  }
+#endif
+
+
+
+SetCommLineStatus(CLS_FREE);
+
+// send collection of first initialization parameters for the GSM module
+InitParam(PARAM_SET_0);
 }
 
 
@@ -888,14 +814,14 @@ void GSM::InitParam(byte group)
     case PARAM_SET_0:
       // check comm line
       if (CLS_FREE != GetCommLineStatus()) return;
-	  
-	  	#ifdef DEBUG_PRINT
-			DebugPrint("DEBUG: configure the module PARAM_SET_0\r\n", 0);
-		#endif
+
+#ifdef DEBUG_PRINT
+      DebugPrint("DEBUG: configure the module PARAM_SET_0\r\n", 0);
+#endif
       SetCommLineStatus(CLS_ATCMD);
 
       // Reset to the factory settings
-      SendATCmdWaitResp("AT&F", 1000, 50, "OK", 5);      
+      SendATCmdWaitResp(F("AT&F"), 1000, 50, F("OK"), 5);
       // switch off echo
       //SendATCmdWaitResp("ATE0", 500, 50, "OK", 5);
       // setup fixed baud rate
@@ -916,25 +842,25 @@ void GSM::InitParam(byte group)
     case PARAM_SET_1:
       // check comm line
       if (CLS_FREE != GetCommLineStatus()) return;
-	  
-	  	#ifdef DEBUG_PRINT
-			DebugPrint("DEBUG: configure the module PARAM_SET_1\r\n", 0);
-		#endif
+
+#ifdef DEBUG_PRINT
+      DebugPrint("DEBUG: configure the module PARAM_SET_1\r\n", 0);
+#endif
       SetCommLineStatus(CLS_ATCMD);
-                  
+
       // Request calling line identification
-      SendATCmdWaitResp("AT+CLIP=1", 500, 50, "OK", 5);
+      SendATCmdWaitResp(F("AT+CLIP=1"), 500, 50, F("OK"), 5);
       // Mobile Equipment Error Code
-      SendATCmdWaitResp("AT+CMEE=0", 500, 50, "OK", 5);
-      // Echo canceller enabled 
+      SendATCmdWaitResp(F("AT+CMEE=0"), 500, 50, F("OK"), 5);
+      // Echo canceller enabled
       //SendATCmdWaitResp("AT#SHFEC=1", 500, 50, "OK", 5);
       // Ringer tone select (0 to 32)
       //SendATCmdWaitResp("AT#SRS=26,0", 500, 50, "OK", 5);
-      // Microphone gain (0 to 7) - response here sometimes takes 
+      // Microphone gain (0 to 7) - response here sometimes takes
       // more than 500msec. so 1000msec. is more safety
       //SendATCmdWaitResp("AT#HFMICG=7", 1000, 50, "OK", 5);
-      // set the SMS mode to text 
-      SendATCmdWaitResp("AT+CMGF=1", 500, 50, "OK", 5);
+      // set the SMS mode to text
+      SendATCmdWaitResp(F("AT+CMGF=1"), 500, 50, F("OK"), 5);
       // Auto answer after first ring enabled
       // auto answer is not used
       //SendATCmdWaitResp("ATS0=1", 500, 50, "OK", 5);
@@ -951,14 +877,14 @@ void GSM::InitParam(byte group)
       // init SMS storage
       InitSMSMemory();
       // select phonebook memory storage
-      SendATCmdWaitResp("AT+CPBS=\"SM\"", 1000, 50, "OK", 5);
+      SendATCmdWaitResp(F("AT+CPBS=\"SM\""), 1000, 50, F("OK"), 5);
       break;
   }
-  
+
 }
 
 /**********************************************************
-  Enables DTMF receiver = IC8 device 
+  Enables DTMF receiver = IC8 device
 **********************************************************/
 /*void GSM::EnableDTMF(void)
 {
@@ -968,7 +894,7 @@ void GSM::InitParam(byte group)
   pinMode(DTMF_DATA1, INPUT);            // sets pin 7 as input
   pinMode(DTMF_DATA2, INPUT);            // sets pin 8 as input
   pinMode(DTMF_DATA3, INPUT);            // sets pin 9 as input
-  // activation of IC8 
+  // activation of IC8
   digitalWrite(DTMF_OUTPUT_ENABLE, HIGH);
 }
 */
@@ -1037,7 +963,7 @@ Method checks if the GSM module is registered in the GSM net
 
 - must be called regularly - from 1sec. to cca. 10 sec.
 
-return values: 
+return values:
       REG_NOT_REGISTERED  - not registered
       REG_REGISTERED      - GSM module is registered
       REG_NO_RESPONSE     - GSM doesn't response
@@ -1054,21 +980,21 @@ byte GSM::CheckRegistration(void)
   sim_serial->println("AT+CREG?");
   // 5 sec. for initial comm tmout
   // 50 msec. for inter character timeout
-  status = WaitResp(5000, 50); 
+  status = WaitResp(5000, 50);
 
   if (status == RX_FINISHED) {
     // something was received but what was received?
     // ---------------------------------------------
-    if(IsStringReceived("+CREG: 0,1") 
-      || IsStringReceived("+CREG: 0,5")) {
+    if (IsStringReceived(F("+CREG: 0,1"))
+        || IsStringReceived(F("+CREG: 0,5"))) {
       // it means module is registered
       // ----------------------------
       module_status |= STATUS_REGISTERED;
-    
-    
+
+
       // in case GSM module is registered first time after reset
       // sets flag STATUS_INITIALIZED
-      // it is used for sending some init commands which 
+      // it is used for sending some init commands which
       // must be sent only after registration
       // --------------------------------------------
       if (!IsInitialized()) {
@@ -1076,7 +1002,7 @@ byte GSM::CheckRegistration(void)
         SetCommLineStatus(CLS_FREE);
         InitParam(PARAM_SET_1);
       }
-      ret_val = REG_REGISTERED;      
+      ret_val = REG_REGISTERED;
     }
     else {
       // NOT registered
@@ -1091,7 +1017,7 @@ byte GSM::CheckRegistration(void)
     ret_val = REG_NO_RESPONSE;
   }
   SetCommLineStatus(CLS_FREE);
- 
+
 
   return (ret_val);
 }
@@ -1099,11 +1025,11 @@ byte GSM::CheckRegistration(void)
 /**********************************************************
 Method checks status of call
 
-return: 
+return:
       CALL_NONE         - no call activity
       CALL_INCOM_VOICE  - incoming voice
       CALL_ACTIVE_VOICE - active voice
-      CALL_NO_RESPONSE  - no response to the AT command 
+      CALL_NO_RESPONSE  - no response to the AT command
       CALL_COMM_LINE_BUSY - comm line is not free
 **********************************************************/
 byte GSM::CallStatus(void)
@@ -1127,24 +1053,24 @@ byte GSM::CallStatus(void)
     // ready (device allows commands from TA/TE)
     // <CR><LF>+CPAS: 0<CR><LF> <CR><LF>OK<CR><LF>
     // unavailable (device does not allow commands from TA/TE)
-    // <CR><LF>+CPAS: 1<CR><LF> <CR><LF>OK<CR><LF> 
+    // <CR><LF>+CPAS: 1<CR><LF> <CR><LF>OK<CR><LF>
     // unknown (device is not guaranteed to respond to instructions)
     // <CR><LF>+CPAS: 2<CR><LF> <CR><LF>OK<CR><LF> - NO CALL
     // ringing
     // <CR><LF>+CPAS: 3<CR><LF> <CR><LF>OK<CR><LF> - NO CALL
     // call in progress
     // <CR><LF>+CPAS: 4<CR><LF> <CR><LF>OK<CR><LF> - NO CALL
-    if(IsStringReceived("0")) { 
+    if (IsStringReceived(F("0"))) {
       // ready - there is no call
       // ------------------------
       ret_val = CALL_NONE;
     }
-    else if(IsStringReceived("3")) { 
+    else if (IsStringReceived(F("3"))) {
       // incoming call
       // --------------
       ret_val = CALL_INCOM_VOICE;
     }
-    else if(IsStringReceived("4")) { 
+    else if (IsStringReceived(F("4"))) {
       // active call
       // -----------
       ret_val = CALL_ACTIVE_VOICE;
@@ -1157,7 +1083,7 @@ byte GSM::CallStatus(void)
 }
 
 /**********************************************************
-Method checks status of call(incoming or active) 
+Method checks status of call(incoming or active)
 and makes authorization with specified SIM positions range
 
 phone_number: a pointer where the tel. number string of current call will be placed
@@ -1173,15 +1099,15 @@ last_authorized_pos:  last SIM phonebook position where the authorization proces
                       the received incoming phone number is NOT authorized at all, so every
                       incoming is considered as authorized (CALL_INCOM_VOICE_NOT_AUTH is returned)
 
-return: 
+return:
       CALL_NONE                   - no call activity
       CALL_INCOM_VOICE_AUTH       - incoming voice - authorized
       CALL_INCOM_VOICE_NOT_AUTH   - incoming voice - not authorized
       CALL_ACTIVE_VOICE           - active voice
       CALL_INCOM_DATA_AUTH        - incoming data call - authorized
-      CALL_INCOM_DATA_NOT_AUTH    - incoming data call - not authorized  
+      CALL_INCOM_DATA_NOT_AUTH    - incoming data call - not authorized
       CALL_ACTIVE_DATA            - active data call
-      CALL_NO_RESPONSE            - no response to the AT command 
+      CALL_NO_RESPONSE            - no response to the AT command
       CALL_COMM_LINE_BUSY         - comm line is not free
 **********************************************************/
 byte GSM::CallStatusWithAuth(char *phone_number,
@@ -1191,7 +1117,7 @@ byte GSM::CallStatusWithAuth(char *phone_number,
   byte search_phone_num = 0;
   byte i;
   byte status;
-  char *p_char; 
+  char *p_char;
   char *p_char1;
 
   phone_number[0] = 0x00;  // no phonr number so far
@@ -1201,10 +1127,10 @@ byte GSM::CallStatusWithAuth(char *phone_number,
 
   // 5 sec. for initial comm tmout
   // and max. 1500 msec. for inter character timeout
-  RxInit(5000, 1500); 
+  RxInit(5000, 1500);
   // wait response is finished
   do {
-    if (IsStringReceived("OK\r\n")) { 
+    if (IsStringReceived(F("OK\r\n"))) {
       // perfect - we have some response, but what:
 
       // there is either NO call:
@@ -1214,8 +1140,8 @@ byte GSM::CallStatusWithAuth(char *phone_number,
       // +CLCC: 1,1,4,0,0,"+420XXXXXXXXX",145<CR><LF>
       // <CR><LF>OK<CR><LF>
       status = RX_FINISHED;
-      break; // so finish receiving immediately and let's go to 
-             // to check response 
+      break; // so finish receiving immediately and let's go to
+      // to check response
     }
     status = IsRxFinished();
   } while (status == RX_NOT_FINISHED);
@@ -1227,63 +1153,63 @@ byte GSM::CallStatusWithAuth(char *phone_number,
     // something was received but what was received?
     // example: //+CLCC: 1,1,4,0,0,"+420XXXXXXXXX",145
     // ---------------------------------------------
-    if(IsStringReceived("+CLCC: 1,1,4,0,0")) { 
+    if (IsStringReceived(F("+CLCC: 1,1,4,0,0"))) {
       // incoming VOICE call - not authorized so far
       // -------------------------------------------
       search_phone_num = 1;
       ret_val = CALL_INCOM_VOICE_NOT_AUTH;
     }
-    else if(IsStringReceived("+CLCC: 1,1,4,1,0")) { 
+    else if (IsStringReceived(F("+CLCC: 1,1,4,1,0"))) {
       // incoming DATA call - not authorized so far
       // ------------------------------------------
       search_phone_num = 1;
       ret_val = CALL_INCOM_DATA_NOT_AUTH;
     }
-    else if(IsStringReceived("+CLCC: 1,0,0,0,0")) { 
+    else if (IsStringReceived(F("+CLCC: 1,0,0,0,0"))) {
       // active VOICE call - GSM is caller
       // ----------------------------------
       search_phone_num = 1;
       ret_val = CALL_ACTIVE_VOICE;
     }
-    else if(IsStringReceived("+CLCC: 1,1,0,0,0")) { 
+    else if (IsStringReceived(F("+CLCC: 1,1,0,0,0"))) {
       // active VOICE call - GSM is listener
       // -----------------------------------
       search_phone_num = 1;
       ret_val = CALL_ACTIVE_VOICE;
     }
-    else if(IsStringReceived("+CLCC: 1,1,0,1,0")) { 
+    else if (IsStringReceived(F("+CLCC: 1,1,0,1,0"))) {
       // active DATA call - GSM is listener
       // ----------------------------------
       search_phone_num = 1;
       ret_val = CALL_ACTIVE_DATA;
     }
-    else if(IsStringReceived("+CLCC:")){ 
+    else if (IsStringReceived(F("+CLCC:"))) {
       // other string is not important for us - e.g. GSM module activate call
       // etc.
       // IMPORTANT - each +CLCC:xx response has also at the end
       // string <CR><LF>OK<CR><LF>
       ret_val = CALL_OTHERS;
     }
-    else if(IsStringReceived("OK")){ 
+    else if (IsStringReceived(F("OK"))) {
       // only "OK" => there is NO call activity
       // --------------------------------------
       ret_val = CALL_NONE;
     }
 
-    
+
     // now we will search phone num string
     if (search_phone_num) {
       // extract phone number string
       // ---------------------------
-      p_char = strchr((char *)(comm_buf),'"');
-      p_char1 = p_char+1; // we are on the first phone number character
-      p_char = strchr((char *)(p_char1),'"');
+      p_char = strchr((char *)(comm_buf), '"');
+      p_char1 = p_char + 1; // we are on the first phone number character
+      p_char = strchr((char *)(p_char1), '"');
       if (p_char != NULL) {
         *p_char = 0; // end of string
         strcpy(phone_number, (char *)(p_char1));
       }
-      
-      if ( (ret_val == CALL_INCOM_VOICE_NOT_AUTH) 
+
+      if ( (ret_val == CALL_INCOM_VOICE_NOT_AUTH)
            || (ret_val == CALL_INCOM_DATA_NOT_AUTH)) {
 
         if ((first_authorized_pos == 0) && (last_authorized_pos == 0)) {
@@ -1309,7 +1235,7 @@ byte GSM::CallStatusWithAuth(char *phone_number,
         }
       }
     }
-    
+
   }
   else {
     // nothing was received (RX_TMOUT_ERR)
@@ -1324,7 +1250,7 @@ byte GSM::CallStatusWithAuth(char *phone_number,
 /**********************************************************
 Method picks up an incoming call
 
-return: 
+return:
 **********************************************************/
 void GSM::PickUp(void)
 {
@@ -1337,7 +1263,7 @@ void GSM::PickUp(void)
 /**********************************************************
 Method hangs up incoming or active call
 
-return: 
+return:
 **********************************************************/
 void GSM::HangUp(void)
 {
@@ -1350,8 +1276,8 @@ void GSM::HangUp(void)
 /**********************************************************
 Method calls the specific number
 
-number_string: pointer to the phone number string 
-               e.g. gsm.Call("+420123456789"); 
+number_string: pointer to the phone number string
+               e.g. gsm.Call("+420123456789");
 
 **********************************************************/
 void GSM::Call(char *number_string)
@@ -1360,7 +1286,7 @@ void GSM::Call(char *number_string)
   SetCommLineStatus(CLS_ATCMD);
   // ATDxxxxxx;<CR>
   sim_serial->write("ATD");
-  sim_serial->write(number_string);    
+  sim_serial->write(number_string);
   sim_serial->write(";\r");
   // 10 sec. for initial comm tmout
   // 50 msec. for inter character timeout
@@ -1380,7 +1306,7 @@ void GSM::Call(int sim_position)
   SetCommLineStatus(CLS_ATCMD);
   // ATD>"SM" 1;<CR>
   sim_serial->write("ATD>\"SM\" ");
-  sim_serial->write(sim_position);    
+  sim_serial->write(sim_position);
   sim_serial->write(";\r");
 
   // 10 sec. for initial comm tmout
@@ -1395,7 +1321,7 @@ Method sets speaker volume
 
 speaker_volume: volume in range 0..14
 
-return: 
+return:
         ERROR ret. val:
         ---------------
         -1 - comm. line to the GSM module is not free
@@ -1404,11 +1330,11 @@ return:
 
         OK ret val:
         -----------
-        0..14 current speaker volume 
+        0..14 current speaker volume
 **********************************************************/
 char GSM::SetSpeakerVolume(byte speaker_volume)
 {
-  
+
   char ret_val = -1;
 
   if (CLS_FREE != GetCommLineStatus()) return (ret_val);
@@ -1418,7 +1344,7 @@ char GSM::SetSpeakerVolume(byte speaker_volume)
   // select speaker volume (0 to 14)
   // AT+CLVL=X<CR>   X<0..14>
   sim_serial->write("AT+CLVL=");
-  sim_serial->write((int)speaker_volume);    
+  sim_serial->write((int)speaker_volume);
   sim_serial->write("\r"); // send <CR>
   // 10 sec. for initial comm tmout
   // 50 msec. for inter character timeout
@@ -1426,7 +1352,7 @@ char GSM::SetSpeakerVolume(byte speaker_volume)
     ret_val = -2; // ERROR
   }
   else {
-    if(IsStringReceived("OK")) {
+    if (IsStringReceived(F("OK"))) {
       last_speaker_volume = speaker_volume;
       ret_val = last_speaker_volume; // OK
     }
@@ -1440,7 +1366,7 @@ char GSM::SetSpeakerVolume(byte speaker_volume)
 /**********************************************************
 Method increases speaker volume
 
-return: 
+return:
         ERROR ret. val:
         ---------------
         -1 - comm. line to the GSM module is not free
@@ -1449,7 +1375,7 @@ return:
 
         OK ret val:
         -----------
-        0..14 current speaker volume 
+        0..14 current speaker volume
 **********************************************************/
 char GSM::IncSpeakerVolume(void)
 {
@@ -1469,7 +1395,7 @@ char GSM::IncSpeakerVolume(void)
 /**********************************************************
 Method decreases speaker volume
 
-return: 
+return:
         ERROR ret. val:
         ---------------
         -1 - comm. line to the GSM module is not free
@@ -1478,7 +1404,7 @@ return:
 
         OK ret val:
         -----------
-        0..14 current speaker volume 
+        0..14 current speaker volume
 **********************************************************/
 char GSM::DecSpeakerVolume(void)
 {
@@ -1501,7 +1427,7 @@ This function only works when call is in progress
 
 dtmf_tone: tone to send 0..15
 
-return: 
+return:
         ERROR ret. val:
         ---------------
         -1 - comm. line to the GSM module is not free
@@ -1520,7 +1446,7 @@ char GSM::SendDTMFSignal(byte dtmf_tone)
   SetCommLineStatus(CLS_ATCMD);
   // e.g. AT+VTS=5<CR>
   sim_serial->write("AT+VTS=");
-  sim_serial->write((int)dtmf_tone);    
+  sim_serial->write((int)dtmf_tone);
   sim_serial->write("\r");
   // 1 sec. for initial comm tmout
   // 50 msec. for inter character timeout
@@ -1528,7 +1454,7 @@ char GSM::SendDTMFSignal(byte dtmf_tone)
     ret_val = -2; // ERROR
   }
   else {
-    if(IsStringReceived("OK")) {
+    if (IsStringReceived(F("OK"))) {
       ret_val = dtmf_tone; // OK
     }
     else ret_val = -3; // ERROR
@@ -1549,10 +1475,10 @@ return: 0 - not pushed = released
 byte GSM::IsUserButtonPushed(void)
 {
   byte ret_val = 0;
-  if (CLS_FREE != GetCommLineStatus()) return(0);
+  if (CLS_FREE != GetCommLineStatus()) return (0);
   SetCommLineStatus(CLS_ATCMD);
   //if (AT_RESP_OK == SendATCmdWaitResp("AT#GPIO=9,2", 500, 50, "#GPIO: 0,0", 1)) {
-    // user button is pushed
+  // user button is pushed
   //  ret_val = 1;
   //}
   //else ret_val = 0;
@@ -1568,7 +1494,7 @@ number_str:   pointer to the phone number string
 message_str:  pointer to the SMS text string
 
 
-return: 
+return:
         ERROR ret. val:
         ---------------
         -1 - comm. line to the GSM module is not free
@@ -1585,41 +1511,41 @@ an example of usage:
         GSM gsm;
         gsm.SendSMS("00XXXYYYYYYYYY", "SMS text");
 **********************************************************/
-char GSM::SendSMS(char *number_str, char *message_str) 
+char GSM::SendSMS(char *number_str, char *message_str)
 {
   char ret_val = -1;
   byte i;
 
   if (CLS_FREE != GetCommLineStatus()) return (ret_val);
-  SetCommLineStatus(CLS_ATCMD);  
+  SetCommLineStatus(CLS_ATCMD);
   ret_val = 0; // still not send
   // try to send SMS 3 times in case there is some problem
   for (i = 0; i < 3; i++) {
     // send  AT+CMGS="number_str"
     sim_serial->write("AT+CMGS=\"");
-    sim_serial->write(number_str);  
+    sim_serial->write(number_str);
     sim_serial->write("\"\r");
 
     // 1000 msec. for initial comm tmout
     // 50 msec. for inter character timeout
-    if (RX_FINISHED_STR_RECV == WaitResp(1000, 50, ">")) {
+    if (RX_FINISHED_STR_RECV == WaitResp(1000, 50, F(">"))) {
       // send SMS text
-      sim_serial->write(message_str); 
-	  
+      sim_serial->write(message_str);
+
 #ifdef DEBUG_SMS_ENABLED
       // SMS will not be sent = we will not pay => good for debugging
       sim_serial->write(0x1b);
-      if (RX_FINISHED_STR_RECV == WaitResp(7000, 50, "OK")) {
-#else 
+      if (RX_FINISHED_STR_RECV == WaitResp(7000, 50, F("OK"))) {
+#else
       sim_serial->write(0x1a);
-	  //sim_serial->flush(); // erase rx circular buffer
-      if (RX_FINISHED_STR_RECV == WaitResp(7000, 5000, "+CMGS")) {
+      //sim_serial->flush(); // erase rx circular buffer
+      if (RX_FINISHED_STR_RECV == WaitResp(7000, 5000, F("+CMGS"))) {
 #endif
-        // SMS was send correctly 
+        // SMS was send correctly
         ret_val = 1;
-		#ifdef DEBUG_PRINT
-			DebugPrint("SMS was send correctly \r\n", 0);
-		#endif
+#ifdef DEBUG_PRINT
+        DebugPrint("SMS was send correctly \r\n", 0);
+#endif
         break;
       }
       else continue;
@@ -1641,7 +1567,7 @@ sim_phonebook_position:   SIM phonebook position <1..20>
 message_str:              pointer to the SMS text string
 
 
-return: 
+return:
         ERROR ret. val:
         ---------------
         -1 - comm. line to the GSM module is not free
@@ -1658,7 +1584,7 @@ an example of usage:
         GSM gsm;
         gsm.SendSMS(1, "SMS text");
 **********************************************************/
-char GSM::SendSMS(byte sim_phonebook_position, char *message_str) 
+char GSM::SendSMS(byte sim_phonebook_position, char *message_str)
 {
   char ret_val = -1;
   char sim_phone_number[20];
@@ -1682,7 +1608,7 @@ module - SMSs will be stored in the SIM card
 !!This function is used internally after first registration
 so it is not necessary to used it in the user sketch
 
-return: 
+return:
         ERROR ret. val:
         ---------------
         -1 - comm. line to the GSM module is not free
@@ -1693,21 +1619,21 @@ return:
         1 - SMS memory was initialized
 
 **********************************************************/
-char GSM::InitSMSMemory(void) 
+char GSM::InitSMSMemory(void)
 {
   char ret_val = -1;
 
   if (CLS_FREE != GetCommLineStatus()) return (ret_val);
   SetCommLineStatus(CLS_ATCMD);
   ret_val = 0; // not initialized yet
-  
-  // Disable messages about new SMS from the GSM module 
-  SendATCmdWaitResp("AT+CNMI=2,0", 1000, 50, "OK", 2);
+
+  // Disable messages about new SMS from the GSM module
+  SendATCmdWaitResp(F("AT+CNMI=2,0"), 1000, 50, F("OK"), 2);
 
   // send AT command to init memory for SMS in the SIM card
   // response:
   // +CPMS: <usedr>,<totalr>,<usedw>,<totalw>,<useds>,<totals>
-  if (AT_RESP_OK == SendATCmdWaitResp("AT+CPMS=\"SM\",\"SM\",\"SM\"", 1000, 1000, "+CPMS:", 10)) {
+  if (AT_RESP_OK == SendATCmdWaitResp(F("AT+CPMS=\"SM\",\"SM\",\"SM\""), 1000, 1000, F("+CPMS:"), 10)) {
     ret_val = 1;
   }
   else ret_val = 0;
@@ -1727,10 +1653,10 @@ after calling IsSMSPresent() method status of SMS
 is automatically changed to READ
 
 required_status:  SMS_UNREAD  - new SMS - not read yet
-                  SMS_READ    - already read SMS                  
+                  SMS_READ    - already read SMS
                   SMS_ALL     - all stored SMS
 
-return: 
+return:
         ERROR ret. val:
         ---------------
         -1 - comm. line to the GSM module is not free
@@ -1739,13 +1665,13 @@ return:
         OK ret val:
         -----------
         0 - there is no SMS with specified status
-        1..20 - position where SMS is stored 
+        1..20 - position where SMS is stored
                 (suitable for the function GetGSM())
 
 
 an example of use:
         GSM gsm;
-        char position;  
+        char position;
         char phone_number[20]; // array for the phone number string
         char sms_text[100];
 
@@ -1757,36 +1683,36 @@ an example of use:
           // and SMS text in sms_text
         }
 **********************************************************/
-char GSM::IsSMSPresent(byte required_status) 
+char GSM::IsSMSPresent(byte required_status)
 {
   char ret_val = -1;
   char *p_char;
   byte status;
   char buffer[20];
-  
+
   if (CLS_FREE != GetCommLineStatus()) return (ret_val);
   SetCommLineStatus(CLS_ATCMD);
   ret_val = 0; // still not present
 
   switch (required_status) {
     case SMS_UNREAD:
-      strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[12])));
+      Send(F("AT+CMGL=\"REC UNREAD\"\r"));
       break;
     case SMS_READ:
-      strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[13])));
+            Send(F("AT+CMGL=\"REC READ\"\r"));
       break;
     case SMS_ALL:
-      strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[14])));
+           Send(F("AT+CMGL=\"ALL\"\r"));
       break;
   }
-  sim_serial->write(buffer);
+
 
   // 5 sec. for initial comm tmout
   // and max. 1500 msec. for inter character timeout
-  RxInit(5000, 1500); 
+  RxInit(5000, 1500);
   // wait response is finished
   do {
-    if (IsStringReceived("OK")) { 
+    if (IsStringReceived(F("OK"))) {
       // perfect - we have some response, but what:
 
       // there is either NO SMS:
@@ -1796,13 +1722,13 @@ char GSM::IsSMSPresent(byte required_status)
       // +CMGL: <index>,<stat>,<oa/da>,,[,<tooa/toda>,<length>]
       // <CR><LF> <data> <CR><LF>OK<CR><LF>
       status = RX_FINISHED;
-      break; // so finish receiving immediately and let's go to 
-             // to check response 
+      break; // so finish receiving immediately and let's go to
+      // to check response
     }
     status = IsRxFinished();
   } while (status == RX_NOT_FINISHED);
 
-  
+
 
 
   switch (status) {
@@ -1814,14 +1740,14 @@ char GSM::IsSMSPresent(byte required_status)
     case RX_FINISHED:
       // something was received but what was received?
       // ---------------------------------------------
-      if(IsStringReceived("+CMGL:")) { 
+      if (IsStringReceived(F("+CMGL:"))) {
         // there is some SMS with status => get its position
         // response is:
         // +CMGL: <index>,<stat>,<oa/da>,,[,<tooa/toda>,<length>]
         // <CR><LF> <data> <CR><LF>OK<CR><LF>
-        p_char = strchr((char *)comm_buf,':');
+        p_char = strchr((char *)comm_buf, ':');
         if (p_char != NULL) {
-          ret_val = strtol(p_char+1,NULL,10);
+          ret_val = strtol(p_char + 1, NULL, 10);
         }
       }
       else {
@@ -1831,7 +1757,7 @@ char GSM::IsSMSPresent(byte required_status)
 
       // here we have WaitResp() just for generation tmout 20msec. in case OK was detected
       // not due to receiving
-      WaitResp(20, 20); 
+      WaitResp(20, 20);
       break;
   }
 
@@ -1848,8 +1774,8 @@ phone_number: a pointer where the phone number string of received SMS will be pl
               so the space for the phone number string must be reserved - see example
 SMS_text  :   a pointer where SMS text will be placed
 max_SMS_len:  maximum length of SMS text excluding also string terminating 0x00 character
-              
-return: 
+
+return:
         ERROR ret. val:
         ---------------
         -1 - comm. line to the GSM module is not free
@@ -1861,7 +1787,7 @@ return:
         GETSMS_NO_SMS       - no SMS was not found at the specified position
         GETSMS_UNREAD_SMS   - new SMS was found at the specified position
         GETSMS_READ_SMS     - already read SMS was found at the specified position
-        GETSMS_OTHER_SMS    - other type of SMS was found 
+        GETSMS_OTHER_SMS    - other type of SMS was found
 
 
 an example of usage:
@@ -1880,12 +1806,12 @@ an example of usage:
             gsm.DebugPrint("\r\n          SMS text: ", 0);
             gsm.DebugPrint(sms_text, 1);
           #endif
-        }        
+        }
 **********************************************************/
-char GSM::GetSMS(byte position, char *phone_number, char *SMS_text, byte max_SMS_len) 
+char GSM::GetSMS(byte position, char *phone_number, char *SMS_text, byte max_SMS_len)
 {
   char ret_val = -1;
-  char *p_char; 
+  char *p_char;
   char *p_char1;
   byte len;
 
@@ -1894,15 +1820,15 @@ char GSM::GetSMS(byte position, char *phone_number, char *SMS_text, byte max_SMS
   SetCommLineStatus(CLS_ATCMD);
   phone_number[0] = 0;  // end of string for now
   ret_val = GETSMS_NO_SMS; // still no SMS
-  
+
   //send "AT+CMGR=X" - where X = position
   sim_serial->write("AT+CMGR=");
-  sim_serial->write((int)position);  
+  sim_serial->write((int)position);
   sim_serial->write("\r");
 
   // 5000 msec. for initial comm tmout
   // 100 msec. for inter character tmout
-  switch (WaitResp(5000, 100, "+CMGR")) {
+  switch (WaitResp(5000, 100, F("+CMGR"))) {
     case RX_TMOUT_ERR:
       // response was not received in specific time
       ret_val = -2;
@@ -1910,12 +1836,12 @@ char GSM::GetSMS(byte position, char *phone_number, char *SMS_text, byte max_SMS
 
     case RX_FINISHED_STR_NOT_RECV:
       // OK was received => there is NO SMS stored in this position
-      if(IsStringReceived("OK")) {
-        // there is only response <CR><LF>OK<CR><LF> 
+      if (IsStringReceived(F("OK"))) {
+        // there is only response <CR><LF>OK<CR><LF>
         // => there is NO SMS
         ret_val = GETSMS_NO_SMS;
       }
-      else if(IsStringReceived("ERROR")) {
+      else if (IsStringReceived(F("ERROR"))) {
         // error should not be here but for sure
         ret_val = GETSMS_NO_SMS;
       }
@@ -1926,31 +1852,31 @@ char GSM::GetSMS(byte position, char *phone_number, char *SMS_text, byte max_SMS
 
       //response for new SMS:
       //<CR><LF>+CMGR: "REC UNREAD","+XXXXXXXXXXXX",,"02/03/18,09:54:28+40"<CR><LF>
-		  //There is SMS text<CR><LF>OK<CR><LF>
-      if(IsStringReceived("\"REC UNREAD\"")) { 
-        // get phone number of received SMS: parse phone number string 
+      //There is SMS text<CR><LF>OK<CR><LF>
+      if (IsStringReceived(F("\"REC UNREAD\""))) {
+        // get phone number of received SMS: parse phone number string
         // +XXXXXXXXXXXX
         // -------------------------------------------------------
         ret_val = GETSMS_UNREAD_SMS;
       }
       //response for already read SMS = old SMS:
       //<CR><LF>+CMGR: "REC READ","+XXXXXXXXXXXX",,"02/03/18,09:54:28+40"<CR><LF>
-		  //There is SMS text<CR><LF>
-      else if(IsStringReceived("\"REC READ\"")) {
+      //There is SMS text<CR><LF>
+      else if (IsStringReceived(F("\"REC READ\""))) {
         // get phone number of received SMS
         // --------------------------------
         ret_val = GETSMS_READ_SMS;
       }
       else {
-        // other type like stored for sending.. 
+        // other type like stored for sending..
         ret_val = GETSMS_OTHER_SMS;
       }
 
       // extract phone number string
       // ---------------------------
-      p_char = strchr((char *)(comm_buf),',');
-      p_char1 = p_char+2; // we are on the first phone number character
-      p_char = strchr((char *)(p_char1),'"');
+      p_char = strchr((char *)(comm_buf), ',');
+      p_char1 = p_char + 2; // we are on the first phone number character
+      p_char = strchr((char *)(p_char1), '"');
       if (p_char != NULL) {
         *p_char = 0; // end of string
         strcpy(phone_number, (char *)(p_char1));
@@ -1959,18 +1885,18 @@ char GSM::GetSMS(byte position, char *phone_number, char *SMS_text, byte max_SMS
 
       // get SMS text and copy this text to the SMS_text buffer
       // ------------------------------------------------------
-      p_char = strchr(p_char+1, 0x0a);  // find <LF>
+      p_char = strchr(p_char + 1, 0x0a); // find <LF>
       if (p_char != NULL) {
         // next character after <LF> is the first SMS character
-        p_char++; // now we are on the first SMS character 
+        p_char++; // now we are on the first SMS character
 
         // find <CR> as the end of SMS string
-        p_char1 = strchr((char *)(p_char), 0x0d);  
+        p_char1 = strchr((char *)(p_char), 0x0d);
         if (p_char1 != NULL) {
-          // finish the SMS text string 
-          // because string must be finished for right behaviour 
+          // finish the SMS text string
+          // because string must be finished for right behaviour
           // of next strcpy() function
-          *p_char1 = 0; 
+          *p_char1 = 0;
         }
         // in case there is not finish sequence <CR><LF> because the SMS is
         // too long (more then 130 characters) sms text is finished by the 0x00
@@ -1982,16 +1908,16 @@ char GSM::GetSMS(byte position, char *phone_number, char *SMS_text, byte max_SMS
         if (len < max_SMS_len) {
           // buffer SMS_text has enough place for copying all SMS text
           // so copy whole SMS text
-          // from the beginning of the text(=p_char position) 
+          // from the beginning of the text(=p_char position)
           // to the end of the string(= p_char1 position)
           strcpy(SMS_text, (char *)(p_char));
         }
         else {
           // buffer SMS_text doesn't have enough place for copying all SMS text
           // so cut SMS text to the (max_SMS_len-1)
-          // (max_SMS_len-1) because we need 1 position for the 0x00 as finish 
+          // (max_SMS_len-1) because we need 1 position for the 0x00 as finish
           // string character
-          memcpy(SMS_text, (char *)(p_char), (max_SMS_len-1));
+          memcpy(SMS_text, (char *)(p_char), (max_SMS_len - 1));
           SMS_text[max_SMS_len] = 0; // finish string
         }
       }
@@ -2025,8 +1951,8 @@ last_authorized_pos:  last SIM phonebook position where the authorization proces
                       In case first_authorized_pos=0 and also last_authorized_pos=0
                       the received SMS phone number is NOT authorized at all, so every
                       SMS is considered as authorized (GETSMS_AUTH_SMS is returned)
-              
-return: 
+
+return:
         ERROR ret. val:
         ---------------
         -1 - comm. line to the GSM module is not free
@@ -2076,14 +2002,14 @@ char GSM::GetAuthorizedSMS(byte position, char *phone_number, char *SMS_text, by
   byte i;
 
 #ifdef DEBUG_PRINT
-    DebugPrint("DEBUG GetAuthorizedSMS\r\n", 0);
-    DebugPrint("      #1: ", 0);
-    DebugPrint(position, 0);
-    DebugPrint("      #5: ", 0);
-    DebugPrint(first_authorized_pos, 0);
-    DebugPrint("      #6: ", 0);
-    DebugPrint(last_authorized_pos, 1);
-#endif  
+  DebugPrint("DEBUG GetAuthorizedSMS\r\n", 0);
+  DebugPrint("      #1: ", 0);
+  DebugPrint(position, 0);
+  DebugPrint("      #5: ", 0);
+  DebugPrint(first_authorized_pos, 0);
+  DebugPrint("      #6: ", 0);
+  DebugPrint(last_authorized_pos, 1);
+#endif
 
   ret_val = GetSMS(position, phone_number, SMS_text, max_SMS_len);
   if (ret_val < 0) {
@@ -2128,7 +2054,7 @@ Method deletes SMS from the specified SMS position
 
 position:     SMS position <1..20>
 
-return: 
+return:
         ERROR ret. val:
         ---------------
         -1 - comm. line to the GSM module is not free
@@ -2140,7 +2066,7 @@ return:
         0 - SMS was not deleted
         1 - SMS was deleted
 **********************************************************/
-char GSM::DeleteSMS(byte position) 
+char GSM::DeleteSMS(byte position)
 {
   char ret_val = -1;
 
@@ -2148,16 +2074,16 @@ char GSM::DeleteSMS(byte position)
   if (CLS_FREE != GetCommLineStatus()) return (ret_val);
   SetCommLineStatus(CLS_ATCMD);
   ret_val = 0; // not deleted yet
-  
+
   //send "AT+CMGD=XY" - where XY = position
   sim_serial->write("AT+CMGD=");
-  sim_serial->write((int)position);  
+  sim_serial->write((int)position);
   sim_serial->write("\r");
 
 
   // 5000 msec. for initial comm tmout
   // 20 msec. for inter character timeout
-  switch (WaitResp(5000, 50, "OK")) {
+  switch (WaitResp(5000, 50, F("OK"))) {
     case RX_TMOUT_ERR:
       // response was not received in specific time
       ret_val = -2;
@@ -2170,7 +2096,7 @@ char GSM::DeleteSMS(byte position)
 
     case RX_FINISHED_STR_NOT_RECV:
       // other response: e.g. ERROR => SMS was not deleted
-      ret_val = 0; 
+      ret_val = 0;
       break;
   }
 
@@ -2184,7 +2110,7 @@ Method reads phone number string from specified SIM position
 
 position:     SMS position <1..20>
 
-return: 
+return:
         ERROR ret. val:
         ---------------
         -1 - comm. line to the GSM module is not free
@@ -2205,7 +2131,7 @@ an example of usage:
         char phone_num[20]; // array for the phone number string
 
         if (1 == gsm.GetPhoneNumber(1, phone_num)) {
-          // valid phone number on SIM pos. #1 
+          // valid phone number on SIM pos. #1
           // phone number string is copied to the phone_num array
           #ifdef DEBUG_PRINT
             gsm.DebugPrint("DEBUG phone number: ", 0);
@@ -2223,7 +2149,7 @@ char GSM::GetPhoneNumber(byte position, char *phone_number)
 {
   char ret_val = -1;
 
-  char *p_char; 
+  char *p_char;
   char *p_char1;
 
   if (position == 0) return (-3);
@@ -2231,15 +2157,15 @@ char GSM::GetPhoneNumber(byte position, char *phone_number)
   SetCommLineStatus(CLS_ATCMD);
   ret_val = 0; // not found yet
   phone_number[0] = 0; // phone number not found yet => empty string
-  
+
   //send "AT+CPBR=XY" - where XY = position
   sim_serial->write("AT+CPBR=");
-  sim_serial->write((int)position);  
+  sim_serial->write((int)position);
   sim_serial->write("\r");
 
   // 5000 msec. for initial comm tmout
   // 50 msec. for inter character timeout
-  switch (WaitResp(5000, 50, "+CPBR")) {
+  switch (WaitResp(5000, 50, F("+CPBR"))) {
     case RX_TMOUT_ERR:
       // response was not received in specific time
       ret_val = -2;
@@ -2252,11 +2178,11 @@ char GSM::GetPhoneNumber(byte position, char *phone_number)
 
       // response in case there is not phone number:
       // <CR><LF>OK<CR><LF>
-      p_char = strchr((char *)(comm_buf),'"');
+      p_char = strchr((char *)(comm_buf), '"');
       if (p_char != NULL) {
         p_char++;       // we are on the first phone number character
         // find out '"' as finish character of phone number string
-        p_char1 = strchr((char *)(p_char),'"');
+        p_char1 = strchr((char *)(p_char), '"');
         if (p_char1 != NULL) {
           *p_char1 = 0; // end of string
         }
@@ -2269,7 +2195,7 @@ char GSM::GetPhoneNumber(byte position, char *phone_number)
 
     case RX_FINISHED_STR_NOT_RECV:
       // only OK or ERROR => no phone number
-      ret_val = 0; 
+      ret_val = 0;
       break;
   }
 
@@ -2283,7 +2209,7 @@ Method writes phone number string to the specified SIM position
 position:     SMS position <1..20>
 phone_number: phone number string for the writing
 
-return: 
+return:
         ERROR ret. val:
         ---------------
         -1 - comm. line to the GSM module is not free
@@ -2311,20 +2237,21 @@ char GSM::WritePhoneNumber(byte position, char *phone_number)
   if (CLS_FREE != GetCommLineStatus()) return (ret_val);
   SetCommLineStatus(CLS_ATCMD);
   ret_val = 0; // phone number was not written yet
-  
+
   //send: AT+CPBW=XY,"00420123456789"
   // where XY = position,
   //       "00420123456789" = phone number string
-  strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[11])));
+  
+  Send(F("AT+CPBW=")); 
   sim_serial->write(buffer);
-  sim_serial->write((int)position);  
-  sim_serial->write(",\"");
+  sim_serial->write((int)position);
+  Send(F(",\""));
   sim_serial->write(phone_number);
-  sim_serial->write("\"\r");
+  Send(F("\"\r"));
 
   // 5000 msec. for initial comm tmout
   // 50 msec. for inter character timeout
-  switch (WaitResp(5000, 50, "OK")) {
+  switch (WaitResp(5000, 50, F("OK"))) {
     case RX_TMOUT_ERR:
       // response was not received in specific time
       break;
@@ -2349,7 +2276,7 @@ Method del phone number from the specified SIM position
 
 position:     SMS position <1..20>
 
-return: 
+return:
         ERROR ret. val:
         ---------------
         -1 - comm. line to the GSM module is not free
@@ -2370,17 +2297,17 @@ char GSM::DelPhoneNumber(byte position)
   if (CLS_FREE != GetCommLineStatus()) return (ret_val);
   SetCommLineStatus(CLS_ATCMD);
   ret_val = 0; // phone number was not written yet
-  
+
   //send: AT+CPBW=XY
   // where XY = position
-  strcpy_P(buffer, (char*)pgm_read_word(&(__gsm_string_table[11])));
+  Send(F("AT+CPBW="));
   sim_serial->write(buffer);
-  sim_serial->write((int)position);  
-  sim_serial->write("\r");
+  sim_serial->write((int)position);
+  Send(F("\r"));
 
   // 5000 msec. for initial comm tmout
   // 50 msec. for inter character timeout
-  switch (WaitResp(5000, 50, "OK")) {
+  switch (WaitResp(5000, 50, F("OK"))) {
     case RX_TMOUT_ERR:
       // response was not received in specific time
       break;
@@ -2404,13 +2331,13 @@ char GSM::DelPhoneNumber(byte position)
 
 
 /**********************************************************
-Function compares specified phone number string 
+Function compares specified phone number string
 with phone number stored at the specified SIM position
 
 position:       SMS position <1..20>
 phone_number:   phone number string which should be compare
 
-return: 
+return:
         ERROR ret. val:
         ---------------
         -1 - comm. line to the GSM module is not free
@@ -2443,11 +2370,11 @@ char GSM::ComparePhoneNumber(byte position, char *phone_number)
   char sim_phone_number[20];
 
 #ifdef DEBUG_PRINT
-    DebugPrint("DEBUG ComparePhoneNumber\r\n", 0);
-    DebugPrint("      #1: ", 0);
-    DebugPrint(position, 0);
-    DebugPrint("      #2: ", 0);
-    DebugPrint(phone_number, 1);
+  DebugPrint("DEBUG ComparePhoneNumber\r\n", 0);
+  DebugPrint("      #1: ", 0);
+  DebugPrint(position, 0);
+  DebugPrint("      #2: ", 0);
+  DebugPrint(phone_number, 1);
 #endif
 
 
@@ -2460,7 +2387,7 @@ char GSM::ComparePhoneNumber(byte position, char *phone_number)
       // phone numbers are the same
       // --------------------------
 #ifdef DEBUG_PRINT
-    DebugPrint("DEBUG ComparePhoneNumber: Phone numbers are the same", 1);
+      DebugPrint("DEBUG ComparePhoneNumber: Phone numbers are the same", 1);
 #endif
       ret_val = 1;
     }
@@ -2483,18 +2410,18 @@ Echo(0)   disable echo mode
 
 void GSM::Echo(byte state)
 {
-	if (state == 0 or state == 1)
-	{
-	  SetCommLineStatus(CLS_ATCMD);
-	  #ifdef DEBUG_PRINT
-		DebugPrint("DEBUG Echo\r\n",1);
-	  #endif
-	  sim_serial->write("ATE");
-	  sim_serial->write((int)state);    
-	  sim_serial->write("\r");
-	  delay(500);
-	  SetCommLineStatus(CLS_FREE);
-	}
+  if (state == 0 or state == 1)
+  {
+    SetCommLineStatus(CLS_ATCMD);
+#ifdef DEBUG_PRINT
+    DebugPrint("DEBUG Echo\r\n", 1);
+#endif
+    sim_serial->write("ATE");
+    sim_serial->write((int)state);
+    sim_serial->write("\r");
+    delay(500);
+    SetCommLineStatus(CLS_FREE);
+  }
 }
 
 
