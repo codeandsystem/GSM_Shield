@@ -137,6 +137,18 @@ int GSM::LibVer(void)
   return (GSM_LIB_VERSION);
 }
 
+
+
+
+bool GSM::BringUpWireless()
+{           
+    sim_serial->println(F("AT+CIICR"));
+    WaitResp(10000,100);
+    WaitResp(15000,100);
+    return IsStringReceived(F("OK"));
+
+}
+
 bool GSM::IsSimUnlocked(){
     return SendATCmdWaitResp(F("AT+CPIN?"), 10000, 100 , F("+CPIN: READY"), 1) == AT_RESP_OK;
 }
@@ -149,6 +161,85 @@ bool GSM::IsGprsAttached(){
     return SendATCmdWaitResp(F("AT+CGATT?"), 10000, 100 , F("+CGATT: 1"), 1) == AT_RESP_OK;
 }
 
+
+char GSM::GetLocalIp(char * ip)
+{
+    return SendATCmdGetResp(F("AT+CIFSR"),10000,100,1,ip);
+}
+    
+bool GSM::IpConnect(const char * mode,const char * url,int port)
+{
+  sim_serial->print(F("AT+CIPSTART=\""));
+  sim_serial->print(mode);
+  sim_serial->print(F("\",\""));
+  sim_serial->print(url);
+  sim_serial->print(F("\",\""));
+  sim_serial->print(port);
+  SendATCmdWaitResp(F("\""), 10000, 100 , F("OK"), 1);
+  WaitResp(10000,100);
+  return IsStringReceived(F("CONNECT OK"));
+}
+
+bool GSM::GetManufacturer(char * buffer)
+{
+    char ret = SendATCmdGetResp(F("AT+CGMI"),10000,100,1,buffer);
+    return ret;
+}
+
+bool GSM::GetModel(char * buffer)
+{
+
+    char ret = SendATCmdGetResp(F("AT+CGMM"),10000,100,1,buffer);
+    return ret;
+}
+
+
+
+bool GSM::GetRevision(char * buffer)
+{
+   char ret = SendATCmdGetResp(F("AT+CGMR"),10000,100,1,buffer);
+   return ret;
+}
+
+bool GSM::IpReset()
+{
+  return SendATCmdWaitResp(F("AT+CIPSHUT"), 10000, 100 , F("SHUT OK"), 1) == AT_RESP_OK;
+}
+
+bool GSM::IpStatus()
+{
+  return SendATCmdWaitResp(F("AT+CIPSTATUS"), 10000, 100 , F("STATE: IP INITIAL"), 1) == AT_RESP_OK;
+}
+
+bool GSM::IpSendBegin()
+{
+  return SendATCmdWaitResp(F("AT+CIPSEND"), 10000, 100 , F(">"), 1)  == AT_RESP_OK;
+}
+
+void GSM::IpSend(const char * msg)
+{
+  sim_serial->print(msg);
+} 
+
+void GSM::IpSendEnd(char * response)
+{
+    sim_serial->write(0x1a);
+}
+
+ bool GSM::AttachGprs()
+ {
+   bool ret = SendATCmdWaitResp(F("AT+CGATT=1"), 10000, 100 , F("OK"), 1)  == AT_RESP_OK;
+   Wait(8);
+   return ret;
+ }
+ 
+  bool GSM::DetachGprs()
+ {
+   bool ret = SendATCmdWaitResp(F("AT+CGATT=0"), 10000, 100 , F("OK"), 1)  == AT_RESP_OK;
+   Wait(8);
+   return ret;
+ }
+   
 /**********************************************************
   Constructor definition
 ***********************************************************/
@@ -360,22 +451,20 @@ int GSM::HttpGet(const char * url, char * response)
 
 char GSM::SetupAPN(const char * apn, const char * username, const char * password)
 {
-  SendATCmdWaitResp(F("AT+SAPBR=3,1,\"Contype\",\"GPRS\""), 2000, 200 , F("OK"), 1);
 
-  sim_serial->print(F("AT+SAPBR=3,1,\"APN\",\""));
+
+  /*SendATCmdWaitResp(F("AT+SAPBR=3,1,\"Contype\",\"GPRS\""), 2000, 200 , F("OK"), 1);     */
+
+  sim_serial->print(F("AT+CSTT=\""));
   sim_serial->print(apn);
-  SendATCmdWaitResp(F("\""), 2000, 200, F("OK"), 1);
-  
-  
-  sim_serial->print(F("AT+SAPBR=3,1,\"USER\",\""));
+  sim_serial->print(F("\",\""));
   sim_serial->print(username);
-  SendATCmdWaitResp(F("\""), 2000, 200, F("OK"), 1);
-
-  sim_serial->print(F("AT+SAPBR=3,1,\"PWD\",\"%s\""));
+  sim_serial->print(F("\",\""));
   sim_serial->print(password);
-  SendATCmdWaitResp(F("\""), 2000, 200, F("OK"), 1);
+  return SendATCmdWaitResp(F("\""), 10000, 2000, F("OK"), 1);
 
-  return SendATCmdWaitResp(F("AT+SAPBR=1,1"), 100000, 2000, F("OK"), 1);
+
+
 }
 /**********************************************************
 Method checks if receiving process is finished or not.
@@ -530,9 +619,10 @@ byte GSM::IsStringReceived(const __FlashStringHelper * compare_string)
 			Serial.println(" ");
 		#endif*/
 	
-	if (strstr_P((char *)comm_buf, (const prog_char *)compare_string) != NULL) {
-	    return 1;
-	} 
+      	if (strstr_P((char *)comm_buf, (const prog_char *)compare_string) != NULL) 
+        {
+      	    return 1;
+      	} 
     }
 
     return 0;
@@ -564,7 +654,7 @@ byte GSM::WaitResp(uint16_t start_comm_tmout, uint16_t max_interchar_tmout)
 }
 
 
-char GSM::SendATCmdGetResp(char const *AT_cmd_string,
+char GSM::SendATCmdGetResp(const __FlashStringHelper * AT_cmd_string,
                            uint16_t start_comm_tmout, uint16_t max_interchar_tmout,
                            byte no_of_attempts, char * output)
 {
@@ -1696,13 +1786,13 @@ char GSM::IsSMSPresent(byte required_status)
 
   switch (required_status) {
     case SMS_UNREAD:
-      Send(F("AT+CMGL=\"REC UNREAD\"\r"));
+      sim_serial->print(F("AT+CMGL=\"REC UNREAD\"\r"));
       break;
     case SMS_READ:
-            Send(F("AT+CMGL=\"REC READ\"\r"));
+            sim_serial->print(F("AT+CMGL=\"REC READ\"\r"));
       break;
     case SMS_ALL:
-           Send(F("AT+CMGL=\"ALL\"\r"));
+           sim_serial->print(F("AT+CMGL=\"ALL\"\r"));
       break;
   }
 
@@ -2242,12 +2332,12 @@ char GSM::WritePhoneNumber(byte position, char *phone_number)
   // where XY = position,
   //       "00420123456789" = phone number string
   
-  Send(F("AT+CPBW=")); 
+  sim_serial->print(F("AT+CPBW=")); 
   sim_serial->write(buffer);
   sim_serial->write((int)position);
-  Send(F(",\""));
+  sim_serial->print(F(",\""));
   sim_serial->write(phone_number);
-  Send(F("\"\r"));
+  sim_serial->print(F("\"\r"));
 
   // 5000 msec. for initial comm tmout
   // 50 msec. for inter character timeout
@@ -2300,10 +2390,10 @@ char GSM::DelPhoneNumber(byte position)
 
   //send: AT+CPBW=XY
   // where XY = position
-  Send(F("AT+CPBW="));
+  sim_serial->print(F("AT+CPBW="));
   sim_serial->write(buffer);
   sim_serial->write((int)position);
-  Send(F("\r"));
+  sim_serial->print(F("\r"));
 
   // 5000 msec. for initial comm tmout
   // 50 msec. for inter character timeout

@@ -154,22 +154,47 @@ class GSM
   public:
     byte comm_buf[COMM_BUF_LEN+1];  // communication buffer +1 for 0x00 termination
     char SetupAPN(const char * apn, const char * username,const char * password);
-    char SendATCmdGetResp(char const *AT_cmd_string,
+    char SendATCmdGetResp(const __FlashStringHelper * AT_cmd_string,
                 uint16_t start_comm_tmout, uint16_t max_interchar_tmout,
                 byte no_of_attempts,char * output);
     
     
-    void Send(const __FlashStringHelper *AT_cmd_string);
-    void Send(const char * AT_cmd_string);
+
+    /* DEVICE */
+    bool GetManufacturer(char * buffer);
+    bool GetModel(char * buffer);
+    bool GetRevision(char * buffer);
     
+    /* SIM */
     bool IsSimUnlocked();
     bool IsSimRegistered();
+    /* END SIM */
+    
+    /* GPRS */
     bool IsGprsAttached();
+    bool AttachGprs();
+    bool DetachGprs();
+    /* END GPRS */
+    
+    bool BringUpWireless();
+    
+    /* IP */
+    
+    char GetLocalIp(char * ip);
+    bool IpStatus();
+    bool IpReset();
+    bool IpConnect(const char * mode,const char * url,int port);
+    bool IpSendBegin();
+    void IpSend(const char * msg);
+    void IpSendEnd(char * response);
+    /* END IP */
     
     
+    /* GPIO */
     int GPIORead(int pin);
     void GPIOWrite(int pin, int value);
-    void GPIOMode(int pin,int mode);       
+    void GPIOMode(int pin,int mode);  
+    /* END GPIO */     
                 
     int HttpGet(const char * url,char * response);
     // library version
