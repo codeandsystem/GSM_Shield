@@ -159,6 +159,7 @@ class GSM
                 byte no_of_attempts,char * output);
     
     
+    Stream * GetSerialStream();
 
     /* DEVICE */
     bool GetManufacturer(char * buffer);
@@ -183,10 +184,12 @@ class GSM
     char GetLocalIp(char * ip);
     bool IpStatus();
     bool IpReset();
-    bool IpConnect(const char * mode,const char * url,int port);
-    bool IpSendBegin();
+    Stream * IpConnect(const char * mode,const char * url,int port);
     void IpSend(const char * msg);
-    void IpSendEnd(char * response);
+    void IpSend(word msg);
+    void IpSend(byte msg);
+    void IpSend(long msg);
+    bool IpSendEnd();
     /* END IP */
     
     
@@ -212,6 +215,8 @@ class GSM
     void Reset();
     
   
+    void TurnOff();
+    bool IsOn();    
     // turns on GSM module
     void TurnOn(long baud_rate);
     // sends some initialization parameters

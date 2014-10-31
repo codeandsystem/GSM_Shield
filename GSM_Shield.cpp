@@ -8,7 +8,7 @@
 #include <SoftwareSerial.h>
 #include "GSM_Shield.h"
 #include <avr/pgmspace.h>
- 
+#include <GsmStream.h> 
 
 /*prog_char __gsm_string_00[] PROGMEM = "AT+HTTPPARA=\"URL\",\"";   // "String 0" etc are strings to store - change to suit.
 prog_char __gsm_string_01[] PROGMEM = "AT+HTTPINIT";
@@ -126,6 +126,12 @@ GSM::~GSM()
   delete sim_serial;
 }
 
+
+Stream * GSM::GetSerialStream()
+{
+  return sim_serial;
+}
+
 /**********************************************************
 Method returns GSM library version
 
@@ -142,10 +148,7 @@ int GSM::LibVer(void)
 
 bool GSM::BringUpWireless()
 {           
-    sim_serial->println(F("AT+CIICR"));
-    WaitResp(10000,100);
-    WaitResp(15000,100);
-    return IsStringReceived(F("OK"));
+    return SendATCmdWaitResp(F("AT+CIICR"), 30000, 100 , F("OK"), 1) == AT_RESP_OK;
 
 }
 
@@ -164,11 +167,30 @@ bool GSM::IsGprsAttached(){
 
 char GSM::GetLocalIp(char * ip)
 {
-    return SendATCmdGetResp(F("AT+CIFSR"),10000,100,1,ip);
+    sim_serial->println(F("AT+CIFSR"));
+    WaitResp(10000,100);
+    
+    
+    char * ptr1;
+    char * ptr2;
+    
+    int position = 0;
+    for(;position<comm_buf_len;position++)
+      if(!isspace(comm_buf[position]))
+        break;
+  
+    byte byte1 = strtol(((char*)comm_buf)+position,&ptr1,10); 
+    Serial.println(byte1); 
+    byte byte2 = strtol((char*)ptr2,&ptr1,10); 
+    byte byte3 = strtol((char*)ptr1,&ptr2,10); 
+    byte byte4 = strtol((char*)ptr2,&ptr1,10);     
+ 
+    return sprintf(ip,"%d.%d.%d.%d",byte1,byte2,byte3,byte4);
 }
     
-bool GSM::IpConnect(const char * mode,const char * url,int port)
+Stream * GSM::IpConnect(const char * mode,const char * url,int port)
 {
+  IpReset();
   sim_serial->print(F("AT+CIPSTART=\""));
   sim_serial->print(mode);
   sim_serial->print(F("\",\""));
@@ -176,8 +198,10 @@ bool GSM::IpConnect(const char * mode,const char * url,int port)
   sim_serial->print(F("\",\""));
   sim_serial->print(port);
   SendATCmdWaitResp(F("\""), 10000, 100 , F("OK"), 1);
-  WaitResp(10000,100);
-  return IsStringReceived(F("CONNECT OK"));
+  if(WaitResp(10000,100,F("CONNECT OK")))
+    return new GsmStream(this);
+    
+  return NULL;
 }
 
 bool GSM::GetManufacturer(char * buffer)
@@ -203,7 +227,7 @@ bool GSM::GetRevision(char * buffer)
 
 bool GSM::IpReset()
 {
-  return SendATCmdWaitResp(F("AT+CIPSHUT"), 10000, 100 , F("SHUT OK"), 1) == AT_RESP_OK;
+  return SendATCmdWaitResp(F("AT+CIPSHUT"), 10000, 1000 , F("SHUT OK"), 1) == AT_RESP_OK;
 }
 
 bool GSM::IpStatus()
@@ -211,25 +235,48 @@ bool GSM::IpStatus()
   return SendATCmdWaitResp(F("AT+CIPSTATUS"), 10000, 100 , F("STATE: IP INITIAL"), 1) == AT_RESP_OK;
 }
 
-bool GSM::IpSendBegin()
-{
-  return SendATCmdWaitResp(F("AT+CIPSEND"), 10000, 100 , F(">"), 1)  == AT_RESP_OK;
-}
+
 
 void GSM::IpSend(const char * msg)
 {
   sim_serial->print(msg);
+}
+
+void GSM::IpSend(byte msg)
+{
+  sim_serial->write(msg);
+}
+void GSM::IpSend(word msg)
+{
+  sim_serial->write(msg);
+  msg = msg >> sizeof(byte);
+  sim_serial->write(msg);
+}
+
+void GSM::IpSend(long msg)
+{
+  sim_serial->write(msg);
+  msg = msg >> sizeof(byte);
+  sim_serial->write(msg);
+  msg = msg >> sizeof(byte);
+  sim_serial->write(msg);
+  msg = msg >> sizeof(byte);
+  sim_serial->write(msg);
 } 
 
-void GSM::IpSendEnd(char * response)
+bool GSM::IpSendEnd()
 {
     sim_serial->write(0x1a);
+    //bool ret = WaitResp(10000,30,F("SEND OK")) == RX_FINISHED_STR_RECV;  
+    //Serial.write(comm_buf,comm_buf_len);
+    return true;                        
 }
 
  bool GSM::AttachGprs()
  {
    bool ret = SendATCmdWaitResp(F("AT+CGATT=1"), 10000, 100 , F("OK"), 1)  == AT_RESP_OK;
-   Wait(8);
+   delay(8000);
+   
    return ret;
  }
  
@@ -814,6 +861,21 @@ byte GSM::IsInitialized(void)
   - if YES nothing is made
   - if NO GSM module is turned on
 **********************************************************/
+
+bool GSM::IsOn()
+{
+  return AT_RESP_ERR_NO_RESP != SendATCmdWaitResp(F("AT"), 500, 100, F("OK"), 5);
+}
+void GSM::TurnOff()
+{
+  if(IsOn())
+  {
+    digitalWrite(_powerPin, HIGH);
+    delay(1200);
+    digitalWrite(_powerPin, LOW);
+    delay(5000);
+  }
+}
 void GSM::TurnOn(long baud_rate)
 {
   SetCommLineStatus(CLS_ATCMD);
@@ -825,7 +887,7 @@ void GSM::TurnOn(long baud_rate)
   DebugPrint(baud_rate, 0);
 #endif
 
-  if (AT_RESP_ERR_NO_RESP == SendATCmdWaitResp(F("AT"), 500, 100, F("OK"), 5)) {		//check power
+  if (!IsOn()) {		//check power
     // there is no response => turn on the module
 
 #ifdef DEBUG_PRINT
@@ -2507,7 +2569,7 @@ void GSM::Echo(byte state)
     DebugPrint("DEBUG Echo\r\n", 1);
 #endif
     sim_serial->write("ATE");
-    sim_serial->write((int)state);
+    sim_serial->print((int)state);
     sim_serial->write("\r");
     delay(500);
     SetCommLineStatus(CLS_FREE);
